@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="เครื่องมือคำนวณเวลาการรันงานเครื่องจักร 3-Roll ประเมินเวลาต่อวัน สถิติกำลังผลิต และฐานข้อมูลสเปกความเร็ว">
+    <title>3roll Daily planning</title>
+    <!-- Google Fonts: Outfit for display, Sarabun/Inter for UI elements -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons for modern visuals -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo-icon">
+                    <i class="fa-solid fa-compact-disc spin-slow"></i>
+                </div>
+                <div class="logo-text">
+                    <h1>3roll Daily</h1>
+                    <span>Daily Planning</span>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                <button class="nav-btn active" data-tab="planner">
+                    <i class="fa-solid fa-calendar-check"></i>
+                    <span>คำนวณแผนงาน (Planner)</span>
+                </button>
+                <button class="nav-btn" data-tab="database">
+                    <i class="fa-solid fa-database"></i>
+                    <span>ฐานข้อมูล Treatment (Spec DB)</span>
+                </button>
+                <button class="nav-btn" data-tab="settings">
+                    <i class="fa-solid fa-sliders"></i>
+                    <span>ตั้งค่าเครื่องจักร (Settings)</span>
+                </button>
+            </nav>
+            <div class="sidebar-footer">
+                <p>3roll Daily planning v1.0</p>
+                <span id="live-time">00:00:00</span>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="main-header">
+                <div class="header-title">
+                    <h2>3roll Daily planning</h2>
+                    <p>ป้อนแผนงานประจำวันเพื่อจำลองระยะเวลารันงานและคำนวณชั่วโมงการผลิต</p>
+                </div>
+                <div class="header-actions">
+                    <button id="btn-export-csv" class="btn btn-secondary">
+                        <i class="fa-solid fa-file-csv"></i> ส่งออก CSV
+                    </button>
+                    <button id="btn-print" class="btn btn-primary">
+                        <i class="fa-solid fa-print"></i> พิมพ์แผนงาน
+                    </button>
+                </div>
+            </header>
+
+            <!-- TAB 1: Planner -->
+            <section id="tab-planner" class="tab-content active">
+                <!-- KPI Summary Panel -->
+                <div class="kpi-grid">
+                    <div class="kpi-card">
+                        <div class="kpi-icon icon-blue">
+                            <i class="fa-solid fa-clock"></i>
+                        </div>
+                        <div class="kpi-info">
+                            <h3>เวลารันงานทั้งหมด</h3>
+                            <div class="kpi-value" id="kpi-total-time">0 ชม. 00 นาที</div>
+                            <p class="kpi-sub" id="kpi-total-minutes">0 นาที</p>
+                        </div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-icon icon-orange">
+                            <i class="fa-solid fa-scroll"></i>
+                        </div>
+                        <div class="kpi-info">
+                            <h3>จำนวนม้วนทั้งหมด</h3>
+                            <div class="kpi-value" id="kpi-total-rolls">0 ม้วน</div>
+                            <p class="kpi-sub" id="kpi-avg-time-per-roll">เฉลี่ย 0 นาที/ม้วน</p>
+                        </div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-icon icon-green">
+                            <i class="fa-solid fa-gauge-high"></i>
+                        </div>
+                        <div class="kpi-info">
+                            <h3>ความเสถียร / อัตราการรัน</h3>
+                            <div class="kpi-value" id="kpi-utilization">0.0%</div>
+                            <p class="kpi-sub" id="kpi-available-time">ใช้งานของเวลาทำงานสูงสุด</p>
+                        </div>
+                        <!-- Micro SVG Gauge in Card -->
+                        <div class="gauge-container">
+                            <svg class="radial-gauge" viewBox="0 0 36 36">
+                                <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                <path class="circle" id="gauge-fill" stroke-dasharray="0, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-icon icon-red">
+                            <i class="fa-solid fa-user-clock"></i>
+                        </div>
+                        <div class="kpi-info">
+                            <h3>เวลาเสร็จสิ้น & OT</h3>
+                            <div class="kpi-value" id="kpi-finish-ot">--:-- น.</div>
+                            <p class="kpi-sub" id="kpi-ot-hours">ปกติเลิก 15:00 น. | ไม่มี OT</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Split Layout for Planner -->
+                <div class="planner-layout">
+                    <!-- Left: Planner Input Table -->
+                    <div class="card planner-card">
+                        <div class="card-header">
+                            <div class="card-title-group">
+                                <i class="fa-solid fa-list-check card-icon text-blue"></i>
+                                <div>
+                                    <h3>รายการรันงานวันนี้ (Daily Job Schedule)</h3>
+                                    <p>ระบุรหัสวัสดุและจำนวนม้วนเพื่อเริ่มคำนวณ</p>
+                                </div>
+                            </div>
+                            <button id="btn-add-job" class="btn btn-primary btn-sm">
+                                <i class="fa-solid fa-plus"></i> เพิ่มงานรัน
+                            </button>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table" id="job-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 25%;">รหัสวัสดุ (Treatment Code)</th>
+                                        <th style="width: 15%;">ความหนา (Thickness)</th>
+                                        <th style="width: 15%;">Speed (MPM)</th>
+                                        <th style="width: 15%;">เวลา/ม้วน (Min/Roll)</th>
+                                        <th style="width: 15%;">จำนวนม้วน (Rolls)</th>
+                                        <th style="width: 15%;">เวลารวม (Total Time)</th>
+                                        <th style="width: 80px; text-align: center;">จัดการ</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="job-list">
+                                    <!-- Dynamic Rows will be inserted here -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <div id="no-jobs-message" class="empty-state">
+                            <i class="fa-solid fa-circle-info"></i>
+                            <p>ไม่มีรายการทำงานในขณะนี้ กรุณากดปุ่ม "เพิ่มงานรัน" ด้านบน เพื่อคำนวณเวลา</p>
+                        </div>
+                    </div>
+
+                    <!-- Right: Visualizer & Breakdown -->
+                    <div class="card breakdown-card">
+                        <div class="card-header">
+                            <div class="card-title-group">
+                                <i class="fa-solid fa-chart-pie card-icon text-orange"></i>
+                                <div>
+                                    <h3>แผนภูมิวิเคราะห์เวลา (Time Breakdown)</h3>
+                                    <p>สัดส่วนการใช้เวลาของรหัสงานต่างๆ และ Downtime</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <!-- Visual Ring Chart -->
+                            <div class="chart-box">
+                                <div class="visual-progress-stack" id="progress-stack">
+                                    <!-- Dynamic blocks will be generated here -->
+                                </div>
+                            </div>
+
+                            <!-- Legend & Details -->
+                            <div class="legend-list" id="legend-list">
+                                <!-- Dynamic legends here -->
+                            </div>
+
+                            <!-- Work Shift Status -->
+                            <div class="status-summary-box">
+                                <div class="status-row">
+                                    <span>เวลาทำงานของกะที่ตั้งไว้:</span>
+                                    <strong id="summary-workday">24 ชม. (1440 นาที)</strong>
+                                </div>
+                                <div class="status-row">
+                                    <span>เวลารันงานสุทธิ (Net Run):</span>
+                                    <strong id="summary-run-time" class="text-blue">0 นาที</strong>
+                                </div>
+                                <div class="status-row">
+                                    <span>เวลาหยุด/ซ่อมบำรุงประจำวัน (Downtime):</span>
+                                    <strong id="summary-downtime" class="text-orange">60 นาที</strong>
+                                </div>
+                                <div class="status-row highlight">
+                                    <span>เวลาว่างที่เหลืออยู่ (Remaining Time):</span>
+                                    <strong id="summary-remaining-time" class="text-green">1380 นาที</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 2: Database Management (Master Data) -->
+            <section id="tab-database" class="tab-content">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <i class="fa-solid fa-database card-icon text-green"></i>
+                            <div>
+                                <h3>จัดการฐานข้อมูลสเปกเครื่องจักร (Treatment Specs Master Database)</h3>
+                                <p>กำหนดสเปก ความหนา ความเร็ว และม้วนมาตรฐานของรหัสงานแต่ละโค้ด</p>
+                            </div>
+                        </div>
+                        <button id="btn-add-db-item" class="btn btn-primary">
+                            <i class="fa-solid fa-plus"></i> เพิ่มรหัส Treatment
+                        </button>
+                    </div>
+                    
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>รหัสวัสดุ (Code)</th>
+                                    <th>ความหนา (Thickness - mm)</th>
+                                    <th>ความเร็วมาตรฐาน (Speed - MPM)</th>
+                                    <th>ความยาว/ม้วน (Length - m)</th>
+                                    <th>เวลาต่อรอย/เปลี่ยนม้วน (Splice - min)</th>
+                                    <th>คำนวณนาที/ม้วน (Standard Time)</th>
+                                    <th style="width: 150px; text-align: center;">จัดการ</th>
+                                </tr>
+                            </thead>
+                            <tbody id="db-treatment-list">
+                                <!-- Dynamic rows of treatment database -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 3: Operational Settings -->
+            <section id="tab-settings" class="tab-content">
+                <div class="card max-w-md">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <i class="fa-solid fa-gears card-icon text-blue"></i>
+                            <div>
+                                <h3>ตั้งค่าการทำงานประจำวัน (Operational Constants)</h3>
+                                <p>กำหนดมาตรฐานกะทำงานและระยะเวลาหยุดเครื่องเพื่อนำไปใช้คำนวณกำลังผลิต</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <form id="settings-form" class="settings-form">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                                <div class="form-group">
+                                    <label for="setting-start-time">เวลาเริ่มทำงานปกติ (Start Time)</label>
+                                    <div class="input-icon-group" style="position: relative; display: flex; align-items: center;">
+                                        <i class="fa-solid fa-play" style="position: absolute; left: 14px; color: var(--text-muted);"></i>
+                                        <input type="time" id="setting-start-time" value="07:00" style="padding-left: 42px;">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="setting-end-time">เวลาเลิกงานปกติ (End Time)</label>
+                                    <div class="input-icon-group" style="position: relative; display: flex; align-items: center;">
+                                        <i class="fa-solid fa-stop" style="position: absolute; left: 14px; color: var(--text-muted);"></i>
+                                        <input type="time" id="setting-end-time" value="15:00" style="padding-left: 42px;">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 12px;">
+                                <div class="form-group">
+                                    <label for="setting-startup-time">เวลาเตรียมระบบ Start Up (นาที)</label>
+                                    <div class="input-icon-group" style="position: relative; display: flex; align-items: center;">
+                                        <i class="fa-solid fa-bolt" style="position: absolute; left: 14px; color: var(--text-muted);"></i>
+                                        <input type="number" id="setting-startup-time" min="0" max="60" value="15" style="padding-left: 42px;">
+                                    </div>
+                                    <span class="help-text">ทั่วไปกำหนด 15 - 30 นาที</span>
+                                </div>
+                                <div class="form-group">
+                                    <label for="setting-planned-downtime">เวลาหยุดตามแผน (Downtime - นาที)</label>
+                                    <div class="input-icon-group" style="position: relative; display: flex; align-items: center;">
+                                        <i class="fa-solid fa-wrench" style="position: absolute; left: 14px; color: var(--text-muted);"></i>
+                                        <input type="number" id="setting-planned-downtime" min="0" max="1440" value="60" style="padding-left: 42px;">
+                                    </div>
+                                    <span class="help-text">เวลาซ่อมบำรุง/พักสะสมต่อวัน</span>
+                                </div>
+                            </div>
+
+                            <div class="form-action-group">
+                                <button type="button" id="btn-save-settings" class="btn btn-primary">
+                                    <i class="fa-solid fa-floppy-disk"></i> บันทึกการตั้งค่า
+                                </button>
+                                <button type="button" id="btn-reset-db" class="btn btn-danger">
+                                    <i class="fa-solid fa-trash-can"></i> รีเซ็ตฐานข้อมูลทั้งหมด
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Modal: Add/Edit Treatment Code -->
+    <div class="modal-backdrop" id="modal-treatment">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="modal-title">เพิ่มรหัส Treatment ใหม่</h3>
+                <button class="modal-close" id="modal-btn-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="modal-form">
+                    <input type="hidden" id="modal-action-mode" value="add"> <!-- add or edit -->
+                    <input type="hidden" id="modal-original-code" value="">
+
+                    <div class="form-group">
+                        <label for="modal-input-code">รหัสวัสดุ (Treatment Code) <span class="required">*</span></label>
+                        <input type="text" id="modal-input-code" placeholder="เช่น TR-120" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="modal-input-thickness">ความหนา (Thickness - mm)</label>
+                        <input type="text" id="modal-input-thickness" placeholder="เช่น 1.2 หรือ 1.2 mm">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="modal-input-speed">ความเร็วมาตรฐาน (Speed - Meters Per Minute / MPM) <span class="required">*</span></label>
+                        <input type="number" id="modal-input-speed" min="1" step="0.1" placeholder="เช่น 35" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="modal-input-length">ความยาวต่อม้วนมาตรฐาน (Standard Length - เมตร) <span class="required">*</span></label>
+                        <input type="number" id="modal-input-length" min="1" step="1" placeholder="เช่น 250" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="modal-input-splice">เวลาต่อรอย / เตรียมเปลี่ยนม้วน (Splice Time - นาที)</label>
+                        <input type="number" id="modal-input-splice" min="0" step="0.1" placeholder="เช่น 2">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="modal-btn-cancel">ยกเลิก</button>
+                <button type="submit" form="modal-form" class="btn btn-primary" id="modal-btn-save">บันทึกข้อมูล</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Container -->
+    <div class="notification-toast" id="toast">บันทึกสำเร็จ</div>
+
+    <script src="app.js"></script>
+</body>
+</html>

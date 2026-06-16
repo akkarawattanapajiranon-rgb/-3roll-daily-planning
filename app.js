@@ -1,0 +1,853 @@
+// 3-Roll Production Calculator - Core Application Logic
+
+// ==========================================
+// 1. CONSTANTS & DATABASE INITIALIZATION
+// ==========================================
+
+const DEFAULT_TREATMENTS = [
+    { code: "TR-080", thickness: "0.8 mm", speed: 45, length: 300, splice: 2 },
+    { code: "TR-120", thickness: "1.2 mm", speed: 35, length: 250, splice: 2 },
+    { code: "TR-160", thickness: "1.6 mm", speed: 28, length: 200, splice: 2.5 },
+    { code: "TR-200", thickness: "2.0 mm", speed: 20, length: 150, splice: 3 }
+];
+
+const DEFAULT_SETTINGS = {
+    startTime: "07:00",
+    endTime: "15:00",
+    startupTime: 15,
+    plannedDowntime: 60
+};
+
+const DEFAULT_JOBS = [
+    { code: "TR-120", rolls: 12 },
+    { code: "TR-080", rolls: 18 }
+];
+
+// Color palette for dynamic charts and segments
+const SEGMENT_COLORS = [
+    "#3b82f6", // Blue
+    "#f97316", // Orange
+    "#10b981", // Green
+    "#a855f7", // Purple
+    "#ec4899", // Pink
+    "#eab308", // Yellow
+    "#06b6d4", // Cyan
+    "#f43f5e", // Rose
+    "#84cc16", // Lime
+    "#6366f1"  // Indigo
+];
+const DOWNTIME_COLOR = "#64748b"; // Slate Grey
+const STARTUP_COLOR = "#06b6d4"; // Cyan
+const REMAINING_COLOR = "rgba(255, 255, 255, 0.05)"; // Transparent dark
+
+// State variables loaded from LocalStorage or Defaults
+let treatmentDb = JSON.parse(localStorage.getItem("treatment_db")) || DEFAULT_TREATMENTS;
+let currentJobs = JSON.parse(localStorage.getItem("daily_jobs")) || DEFAULT_JOBS;
+let settings = JSON.parse(localStorage.getItem("operation_settings")) || DEFAULT_SETTINGS;
+
+// Save helper functions
+function saveDbToStorage() {
+    localStorage.setItem("treatment_db", JSON.stringify(treatmentDb));
+}
+
+function saveJobsToStorage() {
+    localStorage.setItem("daily_jobs", JSON.stringify(currentJobs));
+}
+
+function saveSettingsToStorage() {
+    localStorage.setItem("operation_settings", JSON.stringify(settings));
+}
+
+// ==========================================
+// 2. DOM ELEMENTS & INITIALIZATION
+// ==========================================
+
+document.addEventListener("DOMContentLoaded", () => {
+    // Start Live Clock
+    initLiveClock();
+
+    // Setup Navigation Tabs
+    initTabs();
+
+    // Load Settings in form
+    loadSettingsIntoForm();
+
+    // Populate Master DB UI
+    renderDatabaseTable();
+
+    // Initialize Jobs Table
+    renderJobsTable();
+
+    // Attach Event Listeners
+    setupEventListeners();
+
+    // Initial Calculation & Drawing
+    calculateAll();
+});
+
+// ==========================================
+// 3. UI HELPER & SYSTEM FUNCTIONS
+// ==========================================
+
+function initLiveClock() {
+    const clockEl = document.getElementById("live-time");
+    setInterval(() => {
+        const now = new Date();
+        clockEl.textContent = now.toLocaleTimeString("th-TH");
+    }, 1000);
+}
+
+function initTabs() {
+    const navButtons = document.querySelectorAll(".nav-btn");
+    const tabContents = document.querySelectorAll(".tab-content");
+
+    navButtons.forEach(btn => {
+        btn.addEventListener("click", () => {
+            const targetTab = btn.getAttribute("data-tab");
+
+            // Update Active Nav Button
+            navButtons.forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+
+            // Update Active Content Tab
+            tabContents.forEach(tab => {
+                tab.classList.remove("active");
+                if (tab.id === `tab-${targetTab}`) {
+                    tab.classList.add("active");
+                }
+            });
+        });
+    });
+}
+
+function showToast(message, type = "success") {
+    const toast = document.getElementById("toast");
+    toast.textContent = message;
+    
+    // Style by type
+    if (type === "error") {
+        toast.style.borderColor = "var(--color-danger-glow)";
+        toast.style.borderLeft = "4px solid var(--color-danger)";
+    } else {
+        toast.style.borderColor = "var(--border-color-glow)";
+        toast.style.borderLeft = "4px solid var(--color-primary)";
+    }
+    
+    toast.classList.add("active");
+    setTimeout(() => {
+        toast.classList.remove("active");
+    }, 3000);
+}
+
+function formatMinutes(totalMinutes) {
+    const hours = Math.floor(totalMinutes / 60);
+    const mins = Math.round(totalMinutes % 60);
+    if (hours === 0) {
+        return `${mins} นาที`;
+    }
+    return `${hours} ชม. ${mins.toString().padStart(2, "0")} นาที`;
+}
+
+// Get standard time calculation for a treatment code
+function getTreatmentCalculations(spec) {
+    if (!spec) return { runTimePerRoll: 0, totalTimePerRoll: 0 };
+    const runTimePerRoll = spec.length / spec.speed; // minutes
+    const totalTimePerRoll = runTimePerRoll + spec.splice; // minutes
+    return {
+        runTimePerRoll: parseFloat(runTimePerRoll.toFixed(2)),
+        totalTimePerRoll: parseFloat(totalTimePerRoll.toFixed(2))
+    };
+}
+
+// ==========================================
+// 4. CALCULATION ENGINE & STATS
+// ==========================================
+
+function parseTimeToMinutes(timeStr) {
+    if (!timeStr) return 0;
+    const [h, m] = timeStr.split(":").map(Number);
+    return h * 60 + m;
+}
+
+function formatMinutesToTime(totalMinutes) {
+    const wrappedMinutes = (totalMinutes + 1440) % 1440;
+    const h = Math.floor(wrappedMinutes / 60);
+    const m = Math.round(wrappedMinutes % 60);
+    return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
+}
+
+function calculateAll() {
+    let totalRolls = 0;
+    let totalRunMinutes = 0;
+    const itemsBreakdown = [];
+
+    // Calculate each job row
+    currentJobs.forEach((job, index) => {
+        const spec = treatmentDb.find(t => t.code === job.code);
+        if (!spec) return;
+
+        const calcs = getTreatmentCalculations(spec);
+        const jobTotalTime = calcs.totalTimePerRoll * job.rolls;
+
+        totalRolls += job.rolls;
+        totalRunMinutes += jobTotalTime;
+
+        itemsBreakdown.push({
+            code: job.code,
+            rolls: job.rolls,
+            totalMinutes: jobTotalTime,
+            color: SEGMENT_COLORS[index % SEGMENT_COLORS.length]
+        });
+    });
+
+    const startupTime = settings.startupTime || 15;
+    const plannedDowntime = settings.plannedDowntime || 60;
+    const totalNeededMinutes = startupTime + totalRunMinutes + plannedDowntime;
+
+    // Shift Calculations
+    const startMinutes = parseTimeToMinutes(settings.startTime || "07:00");
+    const endMinutes = parseTimeToMinutes(settings.endTime || "15:00");
+    
+    let regularShiftMinutes = endMinutes - startMinutes;
+    if (regularShiftMinutes <= 0) {
+        regularShiftMinutes += 1440; // Over midnight wrap
+    }
+
+    // OT Calculation
+    let otMinutes = 0;
+    if (totalNeededMinutes > regularShiftMinutes) {
+        otMinutes = totalNeededMinutes - regularShiftMinutes;
+    }
+
+    const finishMinutes = startMinutes + totalNeededMinutes;
+    const finishTimeStr = formatMinutesToTime(finishMinutes);
+
+    // Update KPI Card values
+    document.getElementById("kpi-total-time").textContent = formatMinutes(totalNeededMinutes);
+    document.getElementById("kpi-total-minutes").textContent = `${Math.round(totalNeededMinutes)} นาที (รวม Start Up ${startupTime} น.)`;
+    document.getElementById("kpi-total-rolls").textContent = `${totalRolls} ม้วน`;
+
+    const avgTimePerRoll = totalRolls > 0 ? (totalRunMinutes / totalRolls) : 0;
+    document.getElementById("kpi-avg-time-per-roll").textContent = `เฉลี่ย ${avgTimePerRoll.toFixed(1)} นาที/ม้วน`;
+
+    // Utilization Gauge (Normalized against regular shift capacity)
+    const utilizationRate = (totalNeededMinutes / regularShiftMinutes) * 100;
+    const uPercent = utilizationRate.toFixed(1);
+    document.getElementById("kpi-utilization").textContent = `${uPercent}%`;
+    document.getElementById("kpi-available-time").textContent = `รันงาน ${formatMinutes(totalNeededMinutes)} จากเวลาปกติ ${formatMinutes(regularShiftMinutes)}`;
+
+    // Set gauge ring circle stroke
+    const circle = document.getElementById("gauge-fill");
+    const cappedPercent = Math.min(100, utilizationRate);
+    circle.style.stroke_dasharray = `${cappedPercent}, 100`; // Note: using dasharray directly via style
+    circle.setAttribute("stroke-dasharray", `${cappedPercent}, 100`);
+
+    // Alert color change if overcapacity
+    if (utilizationRate > 100) {
+        circle.style.stroke = "var(--color-danger)";
+        document.getElementById("kpi-utilization").style.color = "var(--color-danger)";
+    } else if (utilizationRate > 85) {
+        circle.style.stroke = "var(--color-orange)";
+        document.getElementById("kpi-utilization").style.color = "var(--color-orange)";
+    } else {
+        circle.style.stroke = "var(--color-green)";
+        document.getElementById("kpi-utilization").style.color = "var(--color-green)";
+    }
+
+    // Update OT Card
+    const finishOtValueEl = document.getElementById("kpi-finish-ot");
+    const otHoursSubEl = document.getElementById("kpi-ot-hours");
+    
+    finishOtValueEl.textContent = `${finishTimeStr} น.`;
+    if (otMinutes > 0) {
+        const otHours = (otMinutes / 60).toFixed(1);
+        otHoursSubEl.innerHTML = `<span class="text-danger" style="font-weight:600;">เกินเวลาปกติ | OT ${formatMinutes(otMinutes)} (${otHours} ชม.)</span>`;
+        finishOtValueEl.style.color = "var(--color-danger)";
+    } else {
+        otHoursSubEl.textContent = `ปกติเลิก ${settings.endTime || "15:00"} น. | ไม่มี OT`;
+        finishOtValueEl.style.color = "var(--text-primary)";
+    }
+
+    // Update Detail Box in Right Panel
+    document.getElementById("summary-workday").textContent = `${(regularShiftMinutes / 60).toFixed(1)} ชม. (${regularShiftMinutes} นาที)`;
+    document.getElementById("summary-run-time").textContent = `${Math.round(totalRunMinutes)} นาที`;
+    document.getElementById("summary-downtime").textContent = `${plannedDowntime} นาที (+ Startup ${startupTime} น.)`;
+    
+    const remainingEl = document.getElementById("summary-remaining-time");
+    const remainingMinutes = Math.max(0, regularShiftMinutes - totalNeededMinutes);
+    if (totalNeededMinutes > regularShiftMinutes) {
+        remainingEl.textContent = `เกินเวลาปกติ (OT) ${Math.round(totalNeededMinutes - regularShiftMinutes)} นาที`;
+        remainingEl.className = "text-danger";
+    } else {
+        remainingEl.textContent = `${Math.round(remainingMinutes)} นาที`;
+        remainingEl.className = "text-green";
+    }
+
+    // Draw Stacked Progress Bar & Legend
+    const totalCapacityForBar = Math.max(regularShiftMinutes, totalNeededMinutes);
+    renderBreakdownChart(itemsBreakdown, startupTime, plannedDowntime, totalCapacityForBar, regularShiftMinutes);
+}
+
+function renderBreakdownChart(items, startup, downtime, totalCapacity, regularShiftMinutes) {
+    const stackContainer = document.getElementById("progress-stack");
+    const legendList = document.getElementById("legend-list");
+    
+    // Clear dynamic blocks
+    stackContainer.innerHTML = "";
+    legendList.innerHTML = "";
+
+    if (items.length === 0 && startup === 0 && downtime === 0) {
+        stackContainer.style.display = "none";
+        legendList.innerHTML = "<p style='color: var(--text-muted); font-size: 13px; text-align: center;'>ไม่มีข้อมูลแผนงาน</p>";
+        return;
+    }
+    stackContainer.style.display = "flex";
+
+    // Add Startup Segment first
+    if (startup > 0) {
+        const startupPercent = (startup / totalCapacity) * 100;
+        const segment = document.createElement("div");
+        segment.className = "progress-segment";
+        segment.style.width = `${startupPercent}%`;
+        segment.style.backgroundColor = STARTUP_COLOR;
+        segment.setAttribute("data-tooltip", `เตรียมระบบ Start Up: ${formatMinutes(startup)}`);
+        stackContainer.appendChild(segment);
+
+        // Legend for Startup
+        const legend = document.createElement("div");
+        legend.className = "legend-item";
+        legend.innerHTML = `
+            <div class="legend-info">
+                <span class="legend-color" style="background-color: ${STARTUP_COLOR}"></span>
+                <strong>เวลาเตรียมระบบ (Start Up)</strong>
+            </div>
+            <strong>${formatMinutes(startup)}</strong>
+        `;
+        legendList.appendChild(legend);
+    }
+
+    // Draw Stacked Bars for Jobs
+    items.forEach(item => {
+        const widthPercent = (item.totalMinutes / totalCapacity) * 100;
+        if (widthPercent <= 0) return;
+
+        const segment = document.createElement("div");
+        segment.className = "progress-segment";
+        segment.style.width = `${widthPercent}%`;
+        segment.style.backgroundColor = item.color;
+        segment.setAttribute("data-tooltip", `${item.code}: ${formatMinutes(item.totalMinutes)} (${item.rolls} ม้วน)`);
+        stackContainer.appendChild(segment);
+
+        // Add to Legend
+        const legend = document.createElement("div");
+        legend.className = "legend-item";
+        legend.innerHTML = `
+            <div class="legend-info">
+                <span class="legend-color" style="background-color: ${item.color}"></span>
+                <strong>${item.code}</strong>
+                <span>(${item.rolls} ม้วน)</span>
+            </div>
+            <strong>${formatMinutes(item.totalMinutes)}</strong>
+        `;
+        legendList.appendChild(legend);
+    });
+
+    // Add Downtime Segment
+    if (downtime > 0) {
+        const downtimePercent = (downtime / totalCapacity) * 100;
+        const segment = document.createElement("div");
+        segment.className = "progress-segment";
+        segment.style.width = `${downtimePercent}%`;
+        segment.style.backgroundColor = DOWNTIME_COLOR;
+        segment.setAttribute("data-tooltip", `เวลาหยุดตามแผน: ${formatMinutes(downtime)}`);
+        stackContainer.appendChild(segment);
+
+        // Legend for Downtime
+        const legend = document.createElement("div");
+        legend.className = "legend-item";
+        legend.innerHTML = `
+            <div class="legend-info">
+                <span class="legend-color" style="background-color: ${DOWNTIME_COLOR}"></span>
+                <strong>เวลาหยุดสะสม (Downtime)</strong>
+            </div>
+            <strong>${formatMinutes(downtime)}</strong>
+        `;
+        legendList.appendChild(legend);
+    }
+
+    // Add Remaining Space Segment
+    const totalSpentTime = startup + items.reduce((acc, i) => acc + i.totalMinutes, 0) + downtime;
+    if (regularShiftMinutes > totalSpentTime) {
+        const remaining = regularShiftMinutes - totalSpentTime;
+        const remainingPercent = (remaining / totalCapacity) * 100;
+        const segment = document.createElement("div");
+        segment.className = "progress-segment";
+        segment.style.width = `${remainingPercent}%`;
+        segment.style.backgroundColor = REMAINING_COLOR;
+        segment.setAttribute("data-tooltip", `เวลาทำงานปกติคงเหลือ: ${formatMinutes(remaining)}`);
+        stackContainer.appendChild(segment);
+
+        // Legend for Remaining
+        const legend = document.createElement("div");
+        legend.className = "legend-item";
+        legend.innerHTML = `
+            <div class="legend-info">
+                <span class="legend-color" style="background-color: rgba(255,255,255,0.1)"></span>
+                <span>เวลาทำงานปกติคงเหลือ (Remaining Capacity)</span>
+            </div>
+            <strong class="text-green">${formatMinutes(remaining)}</strong>
+        `;
+        legendList.appendChild(legend);
+    }
+}
+
+// ==========================================
+// 5. JOBS TABLE MANAGEMENT
+// ==========================================
+
+function renderJobsTable() {
+    const tbody = document.getElementById("job-list");
+    const emptyState = document.getElementById("no-jobs-message");
+    
+    tbody.innerHTML = "";
+
+    if (currentJobs.length === 0) {
+        emptyState.style.display = "flex";
+        return;
+    }
+    emptyState.style.display = "none";
+
+    currentJobs.forEach((job, index) => {
+        const tr = document.createElement("tr");
+        tr.setAttribute("data-index", index);
+
+        // Select Options
+        let optionsHtml = "";
+        treatmentDb.forEach(t => {
+            const selected = t.code === job.code ? "selected" : "";
+            optionsHtml += `<option value="${t.code}" ${selected}>${t.code}</option>`;
+        });
+
+        const spec = treatmentDb.find(t => t.code === job.code) || treatmentDb[0];
+        if (spec && job.code !== spec.code) {
+            job.code = spec.code; // Fix mismatch if database item was deleted
+        }
+
+        const calcs = getTreatmentCalculations(spec);
+        const rowTotalMinutes = calcs.totalTimePerRoll * job.rolls;
+
+        tr.innerHTML = `
+            <td>
+                <select class="select-input job-code-select">
+                    ${optionsHtml}
+                </select>
+            </td>
+            <td><span class="job-thickness text-muted">${spec ? spec.thickness : "-"}</span></td>
+            <td><span class="job-speed text-muted">${spec ? spec.speed : "-"} MPM</span></td>
+            <td><span class="job-time-per-roll text-bold">${calcs.totalTimePerRoll} นาที</span></td>
+            <td>
+                <input type="number" class="number-input job-rolls-input" min="1" step="1" value="${job.rolls}">
+            </td>
+            <td><span class="job-total-time text-highlight">${formatMinutes(rowTotalMinutes)}</span></td>
+            <td style="text-align: center;">
+                <button class="btn-delete-row" title="ลบรายการรันงาน">
+                    <i class="fa-solid fa-trash-can"></i>
+                </button>
+            </td>
+        `;
+
+        tbody.appendChild(tr);
+    });
+
+    // Attach row events
+    attachRowEventListeners();
+}
+
+function attachRowEventListeners() {
+    const rows = document.querySelectorAll("#job-list tr");
+    
+    rows.forEach(tr => {
+        const index = parseInt(tr.getAttribute("data-index"));
+        const select = tr.querySelector(".job-code-select");
+        const rollsInput = tr.querySelector(".job-rolls-input");
+        const deleteBtn = tr.querySelector(".btn-delete-row");
+
+        // Code selector change
+        select.addEventListener("change", (e) => {
+            const newCode = e.target.value;
+            currentJobs[index].code = newCode;
+            saveJobsToStorage();
+            
+            // Fast cell updates before full calculation
+            const spec = treatmentDb.find(t => t.code === newCode);
+            const calcs = getTreatmentCalculations(spec);
+            tr.querySelector(".job-thickness").textContent = spec.thickness;
+            tr.querySelector(".job-speed").textContent = `${spec.speed} MPM`;
+            tr.querySelector(".job-time-per-roll").textContent = `${calcs.totalTimePerRoll} นาที`;
+            
+            updateRowTotalTime(tr, calcs.totalTimePerRoll, currentJobs[index].rolls);
+            calculateAll();
+        });
+
+        // Rolls input change
+        rollsInput.addEventListener("input", (e) => {
+            let val = parseInt(e.target.value);
+            if (isNaN(val) || val < 1) val = 1;
+            
+            currentJobs[index].rolls = val;
+            saveJobsToStorage();
+
+            const spec = treatmentDb.find(t => t.code === currentJobs[index].code);
+            const calcs = getTreatmentCalculations(spec);
+            
+            updateRowTotalTime(tr, calcs.totalTimePerRoll, val);
+            calculateAll();
+        });
+
+        // Delete Row
+        deleteBtn.addEventListener("click", () => {
+            currentJobs.splice(index, 1);
+            saveJobsToStorage();
+            renderJobsTable();
+            calculateAll();
+            showToast("ลบรายการรันงานเรียบร้อยแล้ว", "success");
+        });
+    });
+}
+
+function updateRowTotalTime(rowElement, timePerRoll, rolls) {
+    const totalMin = timePerRoll * rolls;
+    rowElement.querySelector(".job-total-time").textContent = formatMinutes(totalMin);
+}
+
+// ==========================================
+// 6. MASTER DATABASE MANAGEMENT
+// ==========================================
+
+function renderDatabaseTable() {
+    const tbody = document.getElementById("db-treatment-list");
+    tbody.innerHTML = "";
+
+    treatmentDb.forEach((spec) => {
+        const calcs = getTreatmentCalculations(spec);
+        const tr = document.createElement("tr");
+
+        tr.innerHTML = `
+            <td class="text-bold">${spec.code}</td>
+            <td>${spec.thickness || "-"}</td>
+            <td>${spec.speed} MPM</td>
+            <td>${spec.length} m</td>
+            <td>${spec.splice} min</td>
+            <td><span class="text-highlight">${calcs.totalTimePerRoll} นาที/ม้วน</span> <small class="text-muted">(รัน ${calcs.runTimePerRoll} + ต่อ ${spec.splice})</small></td>
+            <td style="text-align: center;">
+                <button class="btn btn-secondary btn-sm btn-icon-only btn-edit-db" data-code="${spec.code}" title="แก้ไขข้อมูล">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                </button>
+                <button class="btn btn-danger btn-sm btn-icon-only btn-delete-db" data-code="${spec.code}" title="ลบข้อมูล">
+                    <i class="fa-solid fa-trash-can"></i>
+                </button>
+            </td>
+        `;
+
+        tbody.appendChild(tr);
+    });
+
+    // Attach DB Action Listeners
+    attachDbRowEventListeners();
+}
+
+function attachDbRowEventListeners() {
+    // Edit item
+    document.querySelectorAll(".btn-edit-db").forEach(btn => {
+        btn.addEventListener("click", () => {
+            const code = btn.getAttribute("data-code");
+            const spec = treatmentDb.find(t => t.code === code);
+            if (!spec) return;
+
+            openTreatmentModal("edit", spec);
+        });
+    });
+
+    // Delete item
+    document.querySelectorAll(".btn-delete-db").forEach(btn => {
+        btn.addEventListener("click", () => {
+            const code = btn.getAttribute("data-code");
+            
+            // Check if code is in use in current daily jobs
+            const inUse = currentJobs.some(job => job.code === code);
+            if (inUse) {
+                alert(`ไม่สามารถลบโค้ด "${code}" ได้เนื่องจากกำลังถูกใช้งานในตารางแผนงานวันนี้ กรุณาลบออกจากแผนก่อนลบจากฐานข้อมูล`);
+                return;
+            }
+
+            if (confirm(`คุณแน่ใจหรือไม่ที่จะลบรหัส "${code}" ออกจากฐานข้อมูล?`)) {
+                treatmentDb = treatmentDb.filter(t => t.code !== code);
+                saveDbToStorage();
+                renderDatabaseTable();
+                renderJobsTable(); // update selection dropdowns
+                calculateAll();
+                showToast(`ลบรหัส "${code}" สำเร็จ`, "success");
+            }
+        });
+    });
+}
+
+// ==========================================
+// 7. MODAL & SETTINGS ENGINE
+// ==========================================
+
+const modal = document.getElementById("modal-treatment");
+
+function openTreatmentModal(mode = "add", spec = null) {
+    const titleEl = document.getElementById("modal-title");
+    const modeEl = document.getElementById("modal-action-mode");
+    const origCodeEl = document.getElementById("modal-original-code");
+    
+    const inputCode = document.getElementById("modal-input-code");
+    const inputThickness = document.getElementById("modal-input-thickness");
+    const inputSpeed = document.getElementById("modal-input-speed");
+    const inputLength = document.getElementById("modal-input-length");
+    const inputSplice = document.getElementById("modal-input-splice");
+
+    modeEl.value = mode;
+
+    if (mode === "edit" && spec) {
+        titleEl.textContent = `แก้ไขรหัส Treatment: ${spec.code}`;
+        origCodeEl.value = spec.code;
+        
+        inputCode.value = spec.code;
+        inputCode.disabled = true; // don't change key directly
+        inputThickness.value = spec.thickness;
+        inputSpeed.value = spec.speed;
+        inputLength.value = spec.length;
+        inputSplice.value = spec.splice;
+    } else {
+        titleEl.textContent = "เพิ่มรหัส Treatment ใหม่";
+        origCodeEl.value = "";
+        
+        inputCode.value = "";
+        inputCode.disabled = false;
+        inputThickness.value = "";
+        inputSpeed.value = "";
+        inputLength.value = "";
+        inputSplice.value = "2.0"; // default splice time
+    }
+
+    modal.classList.add("active");
+}
+
+function closeTreatmentModal() {
+    modal.classList.remove("active");
+}
+
+function loadSettingsIntoForm() {
+    document.getElementById("setting-start-time").value = settings.startTime || "07:00";
+    document.getElementById("setting-end-time").value = settings.endTime || "15:00";
+    document.getElementById("setting-startup-time").value = settings.startupTime || 15;
+    document.getElementById("setting-planned-downtime").value = settings.plannedDowntime || 60;
+}
+
+// ==========================================
+// 8. EXPORTS & ATTACH EVENTS
+// ==========================================
+
+function setupEventListeners() {
+    // Add Daily Job Event
+    document.getElementById("btn-add-job").addEventListener("click", () => {
+        if (treatmentDb.length === 0) {
+            showToast("กรุณาเพิ่มรหัสในฐานข้อมูลก่อนวางแผนงาน", "error");
+            return;
+        }
+        // Add default using first available spec
+        currentJobs.push({
+            code: treatmentDb[0].code,
+            rolls: 5
+        });
+        saveJobsToStorage();
+        renderJobsTable();
+        calculateAll();
+        showToast("เพิ่มแถวทำงานรันใหม่เรียบร้อย", "success");
+    });
+
+    // Save Settings Event
+    document.getElementById("btn-save-settings").addEventListener("click", () => {
+        const startTime = document.getElementById("setting-start-time").value;
+        const endTime = document.getElementById("setting-end-time").value;
+        const startupTime = parseInt(document.getElementById("setting-startup-time").value);
+        const downtime = parseInt(document.getElementById("setting-planned-downtime").value);
+
+        if (!startTime || !endTime) {
+            showToast("กรุณากรอกเวลาเริ่มและเวลาเลิกงาน", "error");
+            return;
+        }
+
+        if (isNaN(startupTime) || startupTime < 0 || startupTime > 180) {
+            showToast("เวลา Start Up ต้องอยู่ระหว่าง 0 - 180 นาที", "error");
+            return;
+        }
+
+        if (isNaN(downtime) || downtime < 0 || downtime > 1440) {
+            showToast("เวลาซ่อมบำรุงประจำวันต้องอยู่ระหว่าง 0 - 1440 นาที", "error");
+            return;
+        }
+
+        settings.startTime = startTime;
+        settings.endTime = endTime;
+        settings.startupTime = startupTime;
+        settings.plannedDowntime = downtime;
+        saveSettingsToStorage();
+        
+        calculateAll();
+        showToast("บันทึกการตั้งค่าแล้ว", "success");
+    });
+
+    // Reset All Database Event
+    document.getElementById("btn-reset-db").addEventListener("click", () => {
+        if (confirm("ต้องการรีเซ็ตข้อมูลทั้งหมดกลับเป็นค่าเริ่มต้นโรงงานใช่หรือไม่? แผนงานและรหัสที่เพิ่มเข้าไปใหม่จะถูกลบ!")) {
+            localStorage.clear();
+            treatmentDb = DEFAULT_TREATMENTS;
+            currentJobs = DEFAULT_JOBS;
+            settings = DEFAULT_SETTINGS;
+            
+            saveDbToStorage();
+            saveJobsToStorage();
+            saveSettingsToStorage();
+
+            loadSettingsIntoForm();
+            renderDatabaseTable();
+            renderJobsTable();
+            calculateAll();
+            showToast("รีเซ็ตระบบเป็นค่าเริ่มต้นเรียบร้อยแล้ว", "success");
+        }
+    });
+
+    // CSV Export
+    document.getElementById("btn-export-csv").addEventListener("click", exportToCSV);
+
+    // Print
+    document.getElementById("btn-print").addEventListener("click", () => {
+        window.print();
+    });
+
+    // Add DB item trigger
+    document.getElementById("btn-add-db-item").addEventListener("click", () => {
+        openTreatmentModal("add");
+    });
+
+    // Modal cancellation/close
+    document.getElementById("modal-btn-close").addEventListener("click", closeTreatmentModal);
+    document.getElementById("modal-btn-cancel").addEventListener("click", closeTreatmentModal);
+    
+    // Close modal on clicking backdrop
+    modal.addEventListener("click", (e) => {
+        if (e.target === modal) closeTreatmentModal();
+    });
+
+    // Modal Form Submit (Save code spec)
+    document.getElementById("modal-form").addEventListener("submit", (e) => {
+        e.preventDefault();
+
+        const mode = document.getElementById("modal-action-mode").value;
+        const code = document.getElementById("modal-input-code").value.trim().toUpperCase();
+        const thickness = document.getElementById("modal-input-thickness").value.trim();
+        const speed = parseFloat(document.getElementById("modal-input-speed").value);
+        const length = parseInt(document.getElementById("modal-input-length").value);
+        const splice = parseFloat(document.getElementById("modal-input-splice").value) || 0;
+
+        if (!code || isNaN(speed) || isNaN(length)) {
+            showToast("กรุณากรอกข้อมูลที่จำเป็น (*) ให้ครบถ้วน", "error");
+            return;
+        }
+
+        if (mode === "add") {
+            // Check duplicated key
+            const isExist = treatmentDb.some(t => t.code === code);
+            if (isExist) {
+                showToast(`รหัส "${code}" มีอยู่ในฐานข้อมูลแล้ว`, "error");
+                return;
+            }
+
+            treatmentDb.push({ code, thickness, speed, length, splice });
+            showToast(`เพิ่มรหัส "${code}" สำเร็จ`);
+        } else {
+            // Edit mode
+            const index = treatmentDb.findIndex(t => t.code === code);
+            if (index !== -1) {
+                treatmentDb[index] = { code, thickness, speed, length, splice };
+                showToast(`บันทึกรหัส "${code}" สำเร็จ`);
+            }
+        }
+
+        saveDbToStorage();
+        closeTreatmentModal();
+        renderDatabaseTable();
+        renderJobsTable(); // update selection lists in jobs planner
+        calculateAll();
+    });
+}
+
+function exportToCSV() {
+    if (currentJobs.length === 0) {
+        showToast("ไม่มีรายการทำงานที่จะส่งออก", "error");
+        return;
+    }
+
+    let csvContent = "\ufeff"; // Add BOM for excel Thai letters compatibility
+    
+    // Title & Metadata
+    csvContent += `3roll Daily planning plan,,,,,,\n`;
+    csvContent += `พิมพ์เมื่อวันที่,${new Date().toLocaleDateString("th-TH")},,,,,\n\n`;
+
+    // Shift & Settings info
+    const startM = parseTimeToMinutes(settings.startTime || "07:00");
+    const endM = parseTimeToMinutes(settings.endTime || "15:00");
+    let shiftM = endM - startM;
+    if (shiftM <= 0) shiftM += 1440;
+
+    csvContent += `เวลาเริ่มงาน,${settings.startTime || "07:00"},,,เวลาเลิกงานปกติ,${settings.endTime || "15:00"},\n`;
+    csvContent += `เวลา Start Up,${settings.startupTime || 15} นาที,,,เวลาหยุด Downtime,${settings.plannedDowntime || 60} นาที,\n\n`;
+
+    // Table Headers
+    csvContent += "ลำดับ (Seq),รหัสวัสดุ (Code),ความหนา (Thickness),ความเร็ว (Speed-MPM),เวลาต่อม้วน (Min/Roll),จำนวนม้วน (Rolls),เวลารวม (Total Time-min)\n";
+
+    let totalRolls = 0;
+    let totalMinutes = 0;
+
+    currentJobs.forEach((job, index) => {
+        const spec = treatmentDb.find(t => t.code === job.code);
+        const calcs = getTreatmentCalculations(spec);
+        const totalJobTime = calcs.totalTimePerRoll * job.rolls;
+
+        totalRolls += job.rolls;
+        totalMinutes += totalJobTime;
+
+        csvContent += `${index + 1},${job.code},${spec.thickness},${spec.speed},${calcs.totalTimePerRoll},${job.rolls},${totalJobTime.toFixed(1)}\n`;
+    });
+
+    const startupM = settings.startupTime || 15;
+    const downtimeM = settings.plannedDowntime || 60;
+    const overallTotal = totalMinutes + startupM + downtimeM;
+    let otM = 0;
+    if (overallTotal > shiftM) {
+        otM = overallTotal - shiftM;
+    }
+
+    // Summary lines
+    csvContent += `\n`;
+    csvContent += `,,,เวลา Start Up,,,${startupM} นาที\n`;
+    csvContent += `,,,เวลารันงานสุทธิ,,${totalRolls} ม้วน,${totalMinutes.toFixed(1)} นาที\n`;
+    csvContent += `,,,เวลาหยุด Downtime,,,${downtimeM} นาที\n`;
+    csvContent += `,,,เวลารวมทั้งหมด,,,${overallTotal.toFixed(1)} นาที (${(overallTotal / 60).toFixed(2)} ชั่วโมง)\n`;
+    csvContent += `,,,เวลาเลิกงานรันจริง,,,${formatMinutesToTime(startM + overallTotal)} น.\n`;
+    csvContent += `,,,ชั่วโมง OT,,,${(otM / 60).toFixed(1)} ชั่วโมง (${otM} นาที)\n`;
+    
+    // Create download trigger
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `3roll-daily-planning-${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
