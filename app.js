@@ -5,10 +5,40 @@
 // ==========================================
 
 const DEFAULT_TREATMENTS = [
-    { code: "TR-080", thickness: "0.8 mm", speed: 45, length: 300, splice: 2 },
-    { code: "TR-120", thickness: "1.2 mm", speed: 35, length: 250, splice: 2 },
-    { code: "TR-160", thickness: "1.6 mm", speed: 28, length: 200, splice: 2.5 },
-    { code: "TR-200", thickness: "2.0 mm", speed: 20, length: 150, splice: 3 }
+    { code: "EESV", compound: "B1779", thickness: "1.07 mm", speed: 15, length: 400, splice: 25 },
+    { code: "DDSV", compound: "B1779", thickness: "2.00 mm", speed: 12, length: 150, splice: 20 },
+    { code: "RP08", compound: "F2471", thickness: "1.21 mm", speed: 30, length: 450, splice: 15 },
+    { code: "RU53", compound: "F2471", thickness: "1.20 mm", speed: 30, length: 400, splice: 13 },
+    { code: "RU13", compound: "F4057", thickness: "1.60 mm", speed: 25, length: 400, splice: 17 },
+    { code: "RU11", compound: "F4057", thickness: "1.40 mm", speed: 27, length: 400, splice: 16 },
+    { code: "RP09", compound: "F4057", thickness: "1.40 mm", speed: 29, length: 450, splice: 17 },
+    { code: "RP10", compound: "F4057", thickness: "1.20 mm", speed: 29, length: 450, splice: 17 },
+    { code: "NU27", compound: "F740A", thickness: "0.90 mm", speed: 30, length: 400, splice: 13 },
+    { code: "NB32", compound: "F740A", thickness: "0.80 mm", speed: 30, length: 450, splice: 15 },
+    { code: "N824", compound: "F1252", thickness: "0.81 mm", speed: 30, length: 450, splice: 15 },
+    { code: "NC18", compound: "F1252", thickness: "1.00 mm", speed: 20, length: 300, splice: 13 },
+    { code: "NC16", compound: "F1252", thickness: "0.90 mm", speed: 25, length: 300, splice: 12 },
+    { code: "NC12", compound: "F1252", thickness: "0.71 mm", speed: 25, length: 300, splice: 12 },
+    { code: "NC51", compound: "F1252", thickness: "0.81 mm", speed: 28, length: 450, splice: 17 },
+    { code: "NC50", compound: "F1252", thickness: "0.71 mm", speed: 28, length: 450, splice: 17 },
+    { code: "N814", compound: "F1252", thickness: "1.00 mm", speed: 30, length: 450, splice: 15 },
+    { code: "N813", compound: "F1252", thickness: "1.00 mm", speed: 30, length: 450, splice: 15 },
+    { code: "N815", compound: "F1252", thickness: "0.81 mm", speed: 30, length: 450, splice: 15 },
+    { code: "N825", compound: "F1252", thickness: "1.00 mm", speed: 30, length: 450, splice: 15 },
+    { code: "JM52", compound: "F1252", thickness: "1.45 mm", speed: 20, length: 350, splice: 15 },
+    { code: "JM45", compound: "F1145", thickness: "1.45 mm", speed: 20, length: 350, splice: 15 },
+    { code: "JM11", compound: "G1211", thickness: "1.45 mm", speed: 20, length: 350, splice: 15 },
+    { code: "JR52", compound: "F1252", thickness: "1.65 mm", speed: 20, length: 350, splice: 15 },
+    { code: "JR11", compound: "G1211", thickness: "1.65 mm", speed: 20, length: 350, splice: 15 },
+    { code: "JR45", compound: "F1145", thickness: "1.65 mm", speed: 20, length: 350, splice: 15 },
+    { code: "NE45", compound: "F1145", thickness: "0.89 mm", speed: 27, length: 300, splice: 16 },
+    { code: "RT27", compound: "J26R7", thickness: "0.80 mm", speed: 27, length: 400, splice: 16 },
+    { code: "JM06", compound: "F1145", thickness: "1.65 mm", speed: 20, length: 300, splice: 10 },
+    { code: "JM02", compound: "F1145", thickness: "1.27 mm", speed: 14, length: 100, splice: 40 },
+    { code: "NH34", compound: "F1145", thickness: "1.40 mm", speed: 20, length: 300, splice: 20 },
+    { code: "CN16", compound: "F1071", thickness: "0.89 mm", speed: 18, length: 200, splice: 20 },
+    { code: "CN21", compound: "F1071", thickness: "0.89 mm", speed: 18, length: 200, splice: 20 },
+    { code: "CN50", compound: "F1071", thickness: "0.71 mm", speed: 18, length: 200, splice: 20 }
 ];
 
 const DEFAULT_SETTINGS = {
@@ -19,26 +49,16 @@ const DEFAULT_SETTINGS = {
 };
 
 const DEFAULT_JOBS = [
-    { code: "TR-120", rolls: 12 },
-    { code: "TR-080", rolls: 18 }
+    { code: "RU53", rolls: 12 },
+    { code: "NC16", rolls: 18 }
 ];
 
-// Color palette for dynamic charts and segments
-const SEGMENT_COLORS = [
-    "#3b82f6", // Blue
-    "#f97316", // Orange
-    "#10b981", // Green
-    "#a855f7", // Purple
-    "#ec4899", // Pink
-    "#eab308", // Yellow
-    "#06b6d4", // Cyan
-    "#f43f5e", // Rose
-    "#84cc16", // Lime
-    "#6366f1"  // Indigo
-];
-const DOWNTIME_COLOR = "#64748b"; // Slate Grey
-const STARTUP_COLOR = "#06b6d4"; // Cyan
-const REMAINING_COLOR = "rgba(255, 255, 255, 0.05)"; // Transparent dark
+const SPECS_VERSION = "1.3";
+if (localStorage.getItem("specs_version") !== SPECS_VERSION) {
+    localStorage.setItem("treatment_db", JSON.stringify(DEFAULT_TREATMENTS));
+    localStorage.setItem("daily_jobs", JSON.stringify(DEFAULT_JOBS));
+    localStorage.setItem("specs_version", SPECS_VERSION);
+}
 
 // State variables loaded from LocalStorage or Defaults
 let treatmentDb = JSON.parse(localStorage.getItem("treatment_db")) || DEFAULT_TREATMENTS;
@@ -442,6 +462,7 @@ function renderJobsTable() {
                     ${optionsHtml}
                 </select>
             </td>
+            <td><span class="job-compound text-muted">${spec ? (spec.compound || "-") : "-"}</span></td>
             <td><span class="job-thickness text-muted">${spec ? spec.thickness : "-"}</span></td>
             <td><span class="job-speed text-muted">${spec ? spec.speed : "-"} MPM</span></td>
             <td><span class="job-time-per-roll text-bold">${calcs.totalTimePerRoll} นาที</span></td>
@@ -481,6 +502,7 @@ function attachRowEventListeners() {
             // Fast cell updates before full calculation
             const spec = treatmentDb.find(t => t.code === newCode);
             const calcs = getTreatmentCalculations(spec);
+            tr.querySelector(".job-compound").textContent = spec.compound || "-";
             tr.querySelector(".job-thickness").textContent = spec.thickness;
             tr.querySelector(".job-speed").textContent = `${spec.speed} MPM`;
             tr.querySelector(".job-time-per-roll").textContent = `${calcs.totalTimePerRoll} นาที`;
@@ -534,6 +556,7 @@ function renderDatabaseTable() {
 
         tr.innerHTML = `
             <td class="text-bold">${spec.code}</td>
+            <td>${spec.compound || "-"}</td>
             <td>${spec.thickness || "-"}</td>
             <td>${spec.speed} MPM</td>
             <td>${spec.length} m</td>
@@ -604,6 +627,7 @@ function openTreatmentModal(mode = "add", spec = null) {
     const origCodeEl = document.getElementById("modal-original-code");
     
     const inputCode = document.getElementById("modal-input-code");
+    const inputCompound = document.getElementById("modal-input-compound") || document.createElement("input");
     const inputThickness = document.getElementById("modal-input-thickness");
     const inputSpeed = document.getElementById("modal-input-speed");
     const inputLength = document.getElementById("modal-input-length");
@@ -617,6 +641,9 @@ function openTreatmentModal(mode = "add", spec = null) {
         
         inputCode.value = spec.code;
         inputCode.disabled = true; // don't change key directly
+        if (document.getElementById("modal-input-compound")) {
+            document.getElementById("modal-input-compound").value = spec.compound || "";
+        }
         inputThickness.value = spec.thickness;
         inputSpeed.value = spec.speed;
         inputLength.value = spec.length;
@@ -627,6 +654,9 @@ function openTreatmentModal(mode = "add", spec = null) {
         
         inputCode.value = "";
         inputCode.disabled = false;
+        if (document.getElementById("modal-input-compound")) {
+            document.getElementById("modal-input-compound").value = "";
+        }
         inputThickness.value = "";
         inputSpeed.value = "";
         inputLength.value = "";
@@ -749,6 +779,7 @@ function setupEventListeners() {
 
         const mode = document.getElementById("modal-action-mode").value;
         const code = document.getElementById("modal-input-code").value.trim().toUpperCase();
+        const compound = document.getElementById("modal-input-compound") ? document.getElementById("modal-input-compound").value.trim() : "";
         const thickness = document.getElementById("modal-input-thickness").value.trim();
         const speed = parseFloat(document.getElementById("modal-input-speed").value);
         const length = parseInt(document.getElementById("modal-input-length").value);
@@ -767,13 +798,13 @@ function setupEventListeners() {
                 return;
             }
 
-            treatmentDb.push({ code, thickness, speed, length, splice });
+            treatmentDb.push({ code, compound, thickness, speed, length, splice });
             showToast(`เพิ่มรหัส "${code}" สำเร็จ`);
         } else {
             // Edit mode
             const index = treatmentDb.findIndex(t => t.code === code);
             if (index !== -1) {
-                treatmentDb[index] = { code, thickness, speed, length, splice };
+                treatmentDb[index] = { code, compound, thickness, speed, length, splice };
                 showToast(`บันทึกรหัส "${code}" สำเร็จ`);
             }
         }
@@ -795,8 +826,8 @@ function exportToCSV() {
     let csvContent = "\ufeff"; // Add BOM for excel Thai letters compatibility
     
     // Title & Metadata
-    csvContent += `3roll Daily planning plan,,,,,,\n`;
-    csvContent += `พิมพ์เมื่อวันที่,${new Date().toLocaleDateString("th-TH")},,,,,\n\n`;
+    csvContent += `3roll Daily planning plan,,,,,,, \n`;
+    csvContent += `พิมพ์เมื่อวันที่,${new Date().toLocaleDateString("th-TH")},,,,,, \n\n`;
 
     // Shift & Settings info
     const startM = parseTimeToMinutes(settings.startTime || "07:00");
@@ -808,7 +839,7 @@ function exportToCSV() {
     csvContent += `เวลา Start Up,${settings.startupTime || 15} นาที,,,เวลาหยุด Downtime,${settings.plannedDowntime || 60} นาที,\n\n`;
 
     // Table Headers
-    csvContent += "ลำดับ (Seq),รหัสวัสดุ (Code),ความหนา (Thickness),ความเร็ว (Speed-MPM),เวลาต่อม้วน (Min/Roll),จำนวนม้วน (Rolls),เวลารวม (Total Time-min)\n";
+    csvContent += "ลำดับ (Seq),รหัสวัสดุ (Code),รหัส Compound,ความหนา (Thickness),ความเร็ว (Speed-MPM),เวลาต่อม้วน (Min/Roll),จำนวนม้วน (Rolls),เวลารวม (Total Time-min)\n";
 
     let totalRolls = 0;
     let totalMinutes = 0;
@@ -821,7 +852,7 @@ function exportToCSV() {
         totalRolls += job.rolls;
         totalMinutes += totalJobTime;
 
-        csvContent += `${index + 1},${job.code},${spec.thickness},${spec.speed},${calcs.totalTimePerRoll},${job.rolls},${totalJobTime.toFixed(1)}\n`;
+        csvContent += `${index + 1},${job.code},${spec.compound || "-"},${spec.thickness},${spec.speed},${calcs.totalTimePerRoll},${job.rolls},${totalJobTime.toFixed(1)}\n`;
     });
 
     const startupM = settings.startupTime || 15;
