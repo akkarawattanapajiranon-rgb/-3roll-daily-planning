@@ -45,7 +45,7 @@ const DEFAULT_SETTINGS = {
     startTime: "07:00",
     endTime: "15:00",
     startupTime: 15,
-    plannedDowntime: 60,
+    plannedDowntime: 0,
     codeChangeTime: 5
 };
 
@@ -72,7 +72,7 @@ const STARTUP_COLOR = "#06b6d4"; // Cyan
 const REMAINING_COLOR = "rgba(255, 255, 255, 0.05)"; // Transparent dark
 const CODE_CHANGE_COLOR = "#a855f7"; // Violet / Purple
 
-const SPECS_VERSION = "1.5";
+const SPECS_VERSION = "1.6";
 if (localStorage.getItem("specs_version") !== SPECS_VERSION) {
     localStorage.setItem("treatment_db", JSON.stringify(DEFAULT_TREATMENTS));
     localStorage.setItem("daily_jobs", JSON.stringify(DEFAULT_JOBS));
