@@ -196,6 +196,10 @@
                                     <span>เวลาหยุด/ซ่อมบำรุงประจำวัน (Downtime):</span>
                                     <strong id="summary-downtime" class="text-orange">60 นาที</strong>
                                 </div>
+                                <div class="status-row">
+                                    <span>เวลาเปลี่ยนโค้ดสะสม (Code Change):</span>
+                                    <strong id="summary-code-change" style="color: #a855f7;">0 นาที</strong>
+                                </div>
                                 <div class="status-row highlight">
                                     <span>เวลาว่างที่เหลืออยู่ (Remaining Time):</span>
                                     <strong id="summary-remaining-time" class="text-green">1380 นาที</strong>
@@ -275,7 +279,7 @@
                                 </div>
                             </div>
 
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 12px;">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-top: 12px;">
                                 <div class="form-group">
                                     <label for="setting-startup-time">เวลาเตรียมระบบ Start Up (นาที)</label>
                                     <div class="input-icon-group" style="position: relative; display: flex; align-items: center;">
@@ -291,6 +295,14 @@
                                         <input type="number" id="setting-planned-downtime" min="0" max="1440" value="60" style="padding-left: 42px;">
                                     </div>
                                     <span class="help-text">เวลาซ่อมบำรุง/พักสะสมต่อวัน</span>
+                                </div>
+                                <div class="form-group">
+                                    <label for="setting-code-change-time">เวลาเปลี่ยนโค้ด (นาที/ครั้ง)</label>
+                                    <div class="input-icon-group" style="position: relative; display: flex; align-items: center;">
+                                        <i class="fa-solid fa-arrows-spin" style="position: absolute; left: 14px; color: var(--text-muted);"></i>
+                                        <input type="number" id="setting-code-change-time" min="0" max="60" value="5" style="padding-left: 42px;">
+                                    </div>
+                                    <span class="help-text">ทั่วไปกำหนด 5 นาทีต่อโค้ด</span>
                                 </div>
                             </div>
 

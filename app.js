@@ -45,7 +45,8 @@ const DEFAULT_SETTINGS = {
     startTime: "07:00",
     endTime: "15:00",
     startupTime: 15,
-    plannedDowntime: 60
+    plannedDowntime: 60,
+    codeChangeTime: 5
 };
 
 const DEFAULT_JOBS = [
@@ -53,10 +54,29 @@ const DEFAULT_JOBS = [
     { code: "NC16", rolls: 18 }
 ];
 
-const SPECS_VERSION = "1.3";
+// Color palette for dynamic charts and segments
+const SEGMENT_COLORS = [
+    "#3b82f6", // Blue
+    "#f97316", // Orange
+    "#10b981", // Green
+    "#a855f7", // Purple
+    "#ec4899", // Pink
+    "#eab308", // Yellow
+    "#06b6d4", // Cyan
+    "#f43f5e", // Rose
+    "#84cc16", // Lime
+    "#6366f1"  // Indigo
+];
+const DOWNTIME_COLOR = "#64748b"; // Slate Grey
+const STARTUP_COLOR = "#06b6d4"; // Cyan
+const REMAINING_COLOR = "rgba(255, 255, 255, 0.05)"; // Transparent dark
+const CODE_CHANGE_COLOR = "#a855f7"; // Violet / Purple
+
+const SPECS_VERSION = "1.4";
 if (localStorage.getItem("specs_version") !== SPECS_VERSION) {
     localStorage.setItem("treatment_db", JSON.stringify(DEFAULT_TREATMENTS));
     localStorage.setItem("daily_jobs", JSON.stringify(DEFAULT_JOBS));
+    localStorage.setItem("operation_settings", JSON.stringify(DEFAULT_SETTINGS));
     localStorage.setItem("specs_version", SPECS_VERSION);
 }
 
@@ -200,6 +220,9 @@ function calculateAll() {
     let totalRolls = 0;
     let totalRunMinutes = 0;
     const itemsBreakdown = [];
+    let codeChangeCount = 0;
+
+    const singleCodeChangeTime = settings.codeChangeTime !== undefined ? settings.codeChangeTime : 5;
 
     // Calculate each job row
     currentJobs.forEach((job, index) => {
@@ -213,16 +236,32 @@ function calculateAll() {
         totalRunMinutes += jobTotalTime;
 
         itemsBreakdown.push({
+            type: "job",
             code: job.code,
             rolls: job.rolls,
             totalMinutes: jobTotalTime,
             color: SEGMENT_COLORS[index % SEGMENT_COLORS.length]
         });
+
+        // Check if there is a next job and if code changes
+        if (index < currentJobs.length - 1) {
+            const nextJob = currentJobs[index + 1];
+            if (nextJob.code !== job.code) {
+                codeChangeCount++;
+                itemsBreakdown.push({
+                    type: "code_change",
+                    label: `เปลี่ยนโค้ด (${job.code} → ${nextJob.code})`,
+                    totalMinutes: singleCodeChangeTime,
+                    color: CODE_CHANGE_COLOR
+                });
+            }
+        }
     });
 
+    const totalCodeChangeTime = codeChangeCount * singleCodeChangeTime;
     const startupTime = settings.startupTime || 15;
     const plannedDowntime = settings.plannedDowntime || 60;
-    const totalNeededMinutes = startupTime + totalRunMinutes + plannedDowntime;
+    const totalNeededMinutes = startupTime + totalRunMinutes + plannedDowntime + totalCodeChangeTime;
 
     // Shift Calculations
     const startMinutes = parseTimeToMinutes(settings.startTime || "07:00");
@@ -293,6 +332,12 @@ function calculateAll() {
     document.getElementById("summary-run-time").textContent = `${Math.round(totalRunMinutes)} นาที`;
     document.getElementById("summary-downtime").textContent = `${plannedDowntime} นาที (+ Startup ${startupTime} น.)`;
     
+    // Update Code Change summary in UI
+    const codeChangeSummaryEl = document.getElementById("summary-code-change");
+    if (codeChangeSummaryEl) {
+        codeChangeSummaryEl.textContent = totalCodeChangeTime > 0 ? `${totalCodeChangeTime} นาที (${codeChangeCount} ครั้ง)` : "0 นาที";
+    }
+
     const remainingEl = document.getElementById("summary-remaining-time");
     const remainingMinutes = Math.max(0, regularShiftMinutes - totalNeededMinutes);
     if (totalNeededMinutes > regularShiftMinutes) {
@@ -305,10 +350,10 @@ function calculateAll() {
 
     // Draw Stacked Progress Bar & Legend
     const totalCapacityForBar = Math.max(regularShiftMinutes, totalNeededMinutes);
-    renderBreakdownChart(itemsBreakdown, startupTime, plannedDowntime, totalCapacityForBar, regularShiftMinutes);
+    renderBreakdownChart(itemsBreakdown, startupTime, plannedDowntime, totalCapacityForBar, regularShiftMinutes, totalCodeChangeTime, codeChangeCount);
 }
 
-function renderBreakdownChart(items, startup, downtime, totalCapacity, regularShiftMinutes) {
+function renderBreakdownChart(items, startup, downtime, totalCapacity, regularShiftMinutes, codeChangeTotal, codeChangeCount) {
     const stackContainer = document.getElementById("progress-stack");
     const legendList = document.getElementById("legend-list");
     
@@ -346,7 +391,7 @@ function renderBreakdownChart(items, startup, downtime, totalCapacity, regularSh
         legendList.appendChild(legend);
     }
 
-    // Draw Stacked Bars for Jobs
+    // Draw Stacked Bars for Jobs and Code Changes
     items.forEach(item => {
         const widthPercent = (item.totalMinutes / totalCapacity) * 100;
         if (widthPercent <= 0) return;
@@ -355,22 +400,44 @@ function renderBreakdownChart(items, startup, downtime, totalCapacity, regularSh
         segment.className = "progress-segment";
         segment.style.width = `${widthPercent}%`;
         segment.style.backgroundColor = item.color;
-        segment.setAttribute("data-tooltip", `${item.code}: ${formatMinutes(item.totalMinutes)} (${item.rolls} ม้วน)`);
+        
+        if (item.type === "job") {
+            segment.setAttribute("data-tooltip", `${item.code}: ${formatMinutes(item.totalMinutes)} (${item.rolls} ม้วน)`);
+        } else {
+            segment.setAttribute("data-tooltip", `${item.label}: ${formatMinutes(item.totalMinutes)}`);
+        }
         stackContainer.appendChild(segment);
 
-        // Add to Legend
+        // Add Job to Legend (Code Change legend is grouped separately)
+        if (item.type === "job") {
+            const legend = document.createElement("div");
+            legend.className = "legend-item";
+            legend.innerHTML = `
+                <div class="legend-info">
+                    <span class="legend-color" style="background-color: ${item.color}"></span>
+                    <strong>${item.code}</strong>
+                    <span>(${item.rolls} ม้วน)</span>
+                </div>
+                <strong>${formatMinutes(item.totalMinutes)}</strong>
+            `;
+            legendList.appendChild(legend);
+        }
+    });
+
+    // Add grouped Code Change Legend
+    if (codeChangeTotal > 0) {
         const legend = document.createElement("div");
         legend.className = "legend-item";
         legend.innerHTML = `
             <div class="legend-info">
-                <span class="legend-color" style="background-color: ${item.color}"></span>
-                <strong>${item.code}</strong>
-                <span>(${item.rolls} ม้วน)</span>
+                <span class="legend-color" style="background-color: ${CODE_CHANGE_COLOR}"></span>
+                <strong>เวลาเปลี่ยนสเปกสะสม (Code Change)</strong>
+                <span>(${codeChangeCount} ครั้ง)</span>
             </div>
-            <strong>${formatMinutes(item.totalMinutes)}</strong>
+            <strong>${formatMinutes(codeChangeTotal)}</strong>
         `;
         legendList.appendChild(legend);
-    });
+    }
 
     // Add Downtime Segment
     if (downtime > 0) {
@@ -675,6 +742,7 @@ function loadSettingsIntoForm() {
     document.getElementById("setting-end-time").value = settings.endTime || "15:00";
     document.getElementById("setting-startup-time").value = settings.startupTime || 15;
     document.getElementById("setting-planned-downtime").value = settings.plannedDowntime || 60;
+    document.getElementById("setting-code-change-time").value = settings.codeChangeTime || 5;
 }
 
 // ==========================================
@@ -705,6 +773,7 @@ function setupEventListeners() {
         const endTime = document.getElementById("setting-end-time").value;
         const startupTime = parseInt(document.getElementById("setting-startup-time").value);
         const downtime = parseInt(document.getElementById("setting-planned-downtime").value);
+        const codeChangeTime = parseInt(document.getElementById("setting-code-change-time").value);
 
         if (!startTime || !endTime) {
             showToast("กรุณากรอกเวลาเริ่มและเวลาเลิกงาน", "error");
@@ -721,10 +790,16 @@ function setupEventListeners() {
             return;
         }
 
+        if (isNaN(codeChangeTime) || codeChangeTime < 0 || codeChangeTime > 180) {
+            showToast("เวลาเปลี่ยนโค้ดต้องอยู่ระหว่าง 0 - 180 นาที", "error");
+            return;
+        }
+
         settings.startTime = startTime;
         settings.endTime = endTime;
         settings.startupTime = startupTime;
         settings.plannedDowntime = downtime;
+        settings.codeChangeTime = codeChangeTime;
         saveSettingsToStorage();
         
         calculateAll();
@@ -835,14 +910,16 @@ function exportToCSV() {
     let shiftM = endM - startM;
     if (shiftM <= 0) shiftM += 1440;
 
+    const codeChangeRate = settings.codeChangeTime !== undefined ? settings.codeChangeTime : 5;
     csvContent += `เวลาเริ่มงาน,${settings.startTime || "07:00"},,,เวลาเลิกงานปกติ,${settings.endTime || "15:00"},\n`;
-    csvContent += `เวลา Start Up,${settings.startupTime || 15} นาที,,,เวลาหยุด Downtime,${settings.plannedDowntime || 60} นาที,\n\n`;
+    csvContent += `เวลา Start Up,${settings.startupTime || 15} นาที,,,เวลาหยุด Downtime,${settings.plannedDowntime || 60} นาที,,,เวลาเปลี่ยนโค้ด,${codeChangeRate} นาที/ครั้ง\n\n`;
 
     // Table Headers
     csvContent += "ลำดับ (Seq),รหัสวัสดุ (Code),รหัส Compound,ความหนา (Thickness),ความเร็ว (Speed-MPM),เวลาต่อม้วน (Min/Roll),จำนวนม้วน (Rolls),เวลารวม (Total Time-min)\n";
 
     let totalRolls = 0;
     let totalMinutes = 0;
+    let codeChangeCount = 0;
 
     currentJobs.forEach((job, index) => {
         const spec = treatmentDb.find(t => t.code === job.code);
@@ -853,11 +930,20 @@ function exportToCSV() {
         totalMinutes += totalJobTime;
 
         csvContent += `${index + 1},${job.code},${spec.compound || "-"},${spec.thickness},${spec.speed},${calcs.totalTimePerRoll},${job.rolls},${totalJobTime.toFixed(1)}\n`;
+
+        // Count code changes
+        if (index < currentJobs.length - 1) {
+            const nextJob = currentJobs[index + 1];
+            if (nextJob.code !== job.code) {
+                codeChangeCount++;
+            }
+        }
     });
 
+    const totalCodeChangeTime = codeChangeCount * codeChangeRate;
     const startupM = settings.startupTime || 15;
     const downtimeM = settings.plannedDowntime || 60;
-    const overallTotal = totalMinutes + startupM + downtimeM;
+    const overallTotal = totalMinutes + startupM + downtimeM + totalCodeChangeTime;
     let otM = 0;
     if (overallTotal > shiftM) {
         otM = overallTotal - shiftM;
@@ -867,6 +953,7 @@ function exportToCSV() {
     csvContent += `\n`;
     csvContent += `,,,เวลา Start Up,,,${startupM} นาที\n`;
     csvContent += `,,,เวลารันงานสุทธิ,,${totalRolls} ม้วน,${totalMinutes.toFixed(1)} นาที\n`;
+    csvContent += `,,,เวลาเปลี่ยนโค้ดสะสม,,${codeChangeCount} ครั้ง,${totalCodeChangeTime} นาที\n`;
     csvContent += `,,,เวลาหยุด Downtime,,,${downtimeM} นาที\n`;
     csvContent += `,,,เวลารวมทั้งหมด,,,${overallTotal.toFixed(1)} นาที (${(overallTotal / 60).toFixed(2)} ชั่วโมง)\n`;
     csvContent += `,,,เวลาเลิกงานรันจริง,,,${formatMinutesToTime(startM + overallTotal)} น.\n`;
