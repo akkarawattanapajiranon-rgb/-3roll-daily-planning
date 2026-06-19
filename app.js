@@ -628,7 +628,7 @@ function renderDatabaseTable() {
             <td>${spec.speed} MPM</td>
             <td>${spec.length} m</td>
             <td>${spec.splice} min</td>
-            <td><span class="text-highlight">${calcs.totalTimePerRoll} นาที/ม้วน</span> <small class="text-muted">(รัน ${calcs.runTimePerRoll} + ต่อ ${spec.splice})</small></td>
+            <td><span class="text-highlight">${calcs.totalTimePerRoll} นาที/ม้วน</span> <small class="text-muted">(รัน ${calcs.runTimePerRoll} + ต่อม้วน ${spec.splice})</small></td>
             <td style="text-align: center;">
                 <button class="btn btn-secondary btn-sm btn-icon-only btn-edit-db" data-code="${spec.code}" title="แก้ไขข้อมูล">
                     <i class="fa-solid fa-pen-to-square"></i>
