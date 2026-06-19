@@ -5,40 +5,40 @@
 // ==========================================
 
 const DEFAULT_TREATMENTS = [
-    { code: "EESV", compound: "B1779", thickness: "1.07 mm", speed: 15, length: 400, splice: 25 },
-    { code: "DDSV", compound: "B1779", thickness: "2.00 mm", speed: 12, length: 150, splice: 20 },
-    { code: "RP08", compound: "F2471", thickness: "1.21 mm", speed: 30, length: 450, splice: 15 },
-    { code: "RU53", compound: "F2471", thickness: "1.20 mm", speed: 30, length: 400, splice: 13 },
-    { code: "RU13", compound: "F4057", thickness: "1.60 mm", speed: 25, length: 400, splice: 17 },
-    { code: "RU11", compound: "F4057", thickness: "1.40 mm", speed: 27, length: 400, splice: 16 },
-    { code: "RP09", compound: "F4057", thickness: "1.40 mm", speed: 29, length: 450, splice: 17 },
-    { code: "RP10", compound: "F4057", thickness: "1.20 mm", speed: 29, length: 450, splice: 17 },
-    { code: "NU27", compound: "F740A", thickness: "0.90 mm", speed: 30, length: 400, splice: 13 },
-    { code: "NB32", compound: "F740A", thickness: "0.80 mm", speed: 30, length: 450, splice: 15 },
-    { code: "N824", compound: "F1252", thickness: "0.81 mm", speed: 30, length: 450, splice: 15 },
-    { code: "NC18", compound: "F1252", thickness: "1.00 mm", speed: 20, length: 300, splice: 13 },
-    { code: "NC16", compound: "F1252", thickness: "0.90 mm", speed: 25, length: 300, splice: 12 },
-    { code: "NC12", compound: "F1252", thickness: "0.71 mm", speed: 25, length: 300, splice: 12 },
-    { code: "NC51", compound: "F1252", thickness: "0.81 mm", speed: 28, length: 450, splice: 17 },
-    { code: "NC50", compound: "F1252", thickness: "0.71 mm", speed: 28, length: 450, splice: 17 },
-    { code: "N814", compound: "F1252", thickness: "1.00 mm", speed: 30, length: 450, splice: 15 },
-    { code: "N813", compound: "F1252", thickness: "1.00 mm", speed: 30, length: 450, splice: 15 },
-    { code: "N815", compound: "F1252", thickness: "0.81 mm", speed: 30, length: 450, splice: 15 },
-    { code: "N825", compound: "F1252", thickness: "1.00 mm", speed: 30, length: 450, splice: 15 },
-    { code: "JM52", compound: "F1252", thickness: "1.45 mm", speed: 20, length: 350, splice: 15 },
-    { code: "JM45", compound: "F1145", thickness: "1.45 mm", speed: 20, length: 350, splice: 15 },
-    { code: "JM11", compound: "G1211", thickness: "1.45 mm", speed: 20, length: 350, splice: 15 },
-    { code: "JR52", compound: "F1252", thickness: "1.65 mm", speed: 20, length: 350, splice: 15 },
-    { code: "JR11", compound: "G1211", thickness: "1.65 mm", speed: 20, length: 350, splice: 15 },
-    { code: "JR45", compound: "F1145", thickness: "1.65 mm", speed: 20, length: 350, splice: 15 },
-    { code: "NE45", compound: "F1145", thickness: "0.89 mm", speed: 27, length: 300, splice: 16 },
-    { code: "RT27", compound: "J26R7", thickness: "0.80 mm", speed: 27, length: 400, splice: 16 },
-    { code: "JM06", compound: "F1145", thickness: "1.65 mm", speed: 20, length: 300, splice: 10 },
-    { code: "JM02", compound: "F1145", thickness: "1.27 mm", speed: 14, length: 100, splice: 40 },
-    { code: "NH34", compound: "F1145", thickness: "1.40 mm", speed: 20, length: 300, splice: 20 },
-    { code: "CN16", compound: "F1071", thickness: "0.89 mm", speed: 18, length: 200, splice: 20 },
-    { code: "CN21", compound: "F1071", thickness: "0.89 mm", speed: 18, length: 200, splice: 20 },
-    { code: "CN50", compound: "F1071", thickness: "0.71 mm", speed: 18, length: 200, splice: 20 }
+    { code: "EESV", compound: "B1779", thickness: "1.07 mm", speed: 15, length: 400, timePerRoll: 27 },
+    { code: "DDSV", compound: "B1779", thickness: "2.00 mm", speed: 12, length: 150, timePerRoll: 13 },
+    { code: "RP08", compound: "F2471", thickness: "1.21 mm", speed: 30, length: 450, timePerRoll: 15 },
+    { code: "RU53", compound: "F2471", thickness: "1.20 mm", speed: 30, length: 400, timePerRoll: 13 },
+    { code: "RU13", compound: "F4057", thickness: "1.60 mm", speed: 25, length: 400, timePerRoll: 16 },
+    { code: "RU11", compound: "F4057", thickness: "1.40 mm", speed: 27, length: 400, timePerRoll: 15 },
+    { code: "RP09", compound: "F4057", thickness: "1.40 mm", speed: 29, length: 450, timePerRoll: 16 },
+    { code: "RP10", compound: "F4057", thickness: "1.20 mm", speed: 29, length: 450, timePerRoll: 16 },
+    { code: "NU27", compound: "F740A", thickness: "0.90 mm", speed: 30, length: 400, timePerRoll: 13 },
+    { code: "NB32", compound: "F740A", thickness: "0.80 mm", speed: 30, length: 450, timePerRoll: 15 },
+    { code: "N824", compound: "F1252", thickness: "0.81 mm", speed: 30, length: 450, timePerRoll: 15 },
+    { code: "NC18", compound: "F1252", thickness: "1.00 mm", speed: 20, length: 300, timePerRoll: 15 },
+    { code: "NC16", compound: "F1252", thickness: "0.90 mm", speed: 25, length: 300, timePerRoll: 12 },
+    { code: "NC12", compound: "F1252", thickness: "0.71 mm", speed: 25, length: 300, timePerRoll: 12 },
+    { code: "NC51", compound: "F1252", thickness: "0.81 mm", speed: 28, length: 450, timePerRoll: 16 },
+    { code: "NC50", compound: "F1252", thickness: "0.71 mm", speed: 28, length: 450, timePerRoll: 16 },
+    { code: "N814", compound: "F1252", thickness: "1.00 mm", speed: 30, length: 450, timePerRoll: 15 },
+    { code: "N813", compound: "F1252", thickness: "1.00 mm", speed: 30, length: 450, timePerRoll: 15 },
+    { code: "N815", compound: "F1252", thickness: "0.81 mm", speed: 30, length: 450, timePerRoll: 15 },
+    { code: "N825", compound: "F1252", thickness: "1.00 mm", speed: 30, length: 450, timePerRoll: 15 },
+    { code: "JM52", compound: "F1252", thickness: "1.45 mm", speed: 20, length: 350, timePerRoll: 18 },
+    { code: "JM45", compound: "F1145", thickness: "1.45 mm", speed: 20, length: 350, timePerRoll: 18 },
+    { code: "JM11", compound: "G1211", thickness: "1.45 mm", speed: 20, length: 350, timePerRoll: 18 },
+    { code: "JR52", compound: "F1252", thickness: "1.65 mm", speed: 20, length: 350, timePerRoll: 18 },
+    { code: "JR11", compound: "G1211", thickness: "1.65 mm", speed: 20, length: 350, timePerRoll: 18 },
+    { code: "JR45", compound: "F1145", thickness: "1.65 mm", speed: 20, length: 350, timePerRoll: 18 },
+    { code: "NE45", compound: "F1145", thickness: "0.89 mm", speed: 27, length: 300, timePerRoll: 11 },
+    { code: "RT27", compound: "J26R7", thickness: "0.80 mm", speed: 27, length: 400, timePerRoll: 15 },
+    { code: "JM06", compound: "F1145", thickness: "1.65 mm", speed: 20, length: 300, timePerRoll: 15 },
+    { code: "JM02", compound: "F1145", thickness: "1.27 mm", speed: 14, length: 100, timePerRoll: 7 },
+    { code: "NH34", compound: "F1145", thickness: "1.40 mm", speed: 20, length: 300, timePerRoll: 15 },
+    { code: "CN16", compound: "F1071", thickness: "0.89 mm", speed: 18, length: 200, timePerRoll: 11 },
+    { code: "CN21", compound: "F1071", thickness: "0.89 mm", speed: 18, length: 200, timePerRoll: 11 },
+    { code: "CN50", compound: "F1071", thickness: "0.71 mm", speed: 18, length: 200, timePerRoll: 11 }
 ];
 
 const DEFAULT_SETTINGS = {
@@ -72,7 +72,7 @@ const STARTUP_COLOR = "#06b6d4"; // Cyan
 const REMAINING_COLOR = "rgba(255, 255, 255, 0.05)"; // Transparent dark
 const CODE_CHANGE_COLOR = "#a855f7"; // Violet / Purple
 
-const SPECS_VERSION = "1.4";
+const SPECS_VERSION = "1.5";
 if (localStorage.getItem("specs_version") !== SPECS_VERSION) {
     localStorage.setItem("treatment_db", JSON.stringify(DEFAULT_TREATMENTS));
     localStorage.setItem("daily_jobs", JSON.stringify(DEFAULT_JOBS));
@@ -191,11 +191,10 @@ function formatMinutes(totalMinutes) {
 // Get standard time calculation for a treatment code
 function getTreatmentCalculations(spec) {
     if (!spec) return { runTimePerRoll: 0, totalTimePerRoll: 0 };
-    const runTimePerRoll = spec.length / spec.speed; // minutes
-    const totalTimePerRoll = runTimePerRoll + spec.splice; // minutes
+    const timePerRoll = spec.timePerRoll || 0;
     return {
-        runTimePerRoll: parseFloat(runTimePerRoll.toFixed(2)),
-        totalTimePerRoll: parseFloat(totalTimePerRoll.toFixed(2))
+        runTimePerRoll: timePerRoll,
+        totalTimePerRoll: timePerRoll
     };
 }
 
@@ -627,8 +626,7 @@ function renderDatabaseTable() {
             <td>${spec.thickness || "-"}</td>
             <td>${spec.speed} MPM</td>
             <td>${spec.length} m</td>
-            <td>${spec.splice} min</td>
-            <td><span class="text-highlight">${calcs.totalTimePerRoll} นาที/ม้วน</span> <small class="text-muted">(รัน ${calcs.runTimePerRoll} + ต่อม้วน ${spec.splice})</small></td>
+            <td><span class="text-highlight">${spec.timePerRoll} นาที/ม้วน</span></td>
             <td style="text-align: center;">
                 <button class="btn btn-secondary btn-sm btn-icon-only btn-edit-db" data-code="${spec.code}" title="แก้ไขข้อมูล">
                     <i class="fa-solid fa-pen-to-square"></i>
@@ -698,7 +696,7 @@ function openTreatmentModal(mode = "add", spec = null) {
     const inputThickness = document.getElementById("modal-input-thickness");
     const inputSpeed = document.getElementById("modal-input-speed");
     const inputLength = document.getElementById("modal-input-length");
-    const inputSplice = document.getElementById("modal-input-splice");
+    const inputTimeRoll = document.getElementById("modal-input-time-roll");
 
     modeEl.value = mode;
 
@@ -714,7 +712,7 @@ function openTreatmentModal(mode = "add", spec = null) {
         inputThickness.value = spec.thickness;
         inputSpeed.value = spec.speed;
         inputLength.value = spec.length;
-        inputSplice.value = spec.splice;
+        inputTimeRoll.value = spec.timePerRoll;
     } else {
         titleEl.textContent = "เพิ่มรหัส Treatment ใหม่";
         origCodeEl.value = "";
@@ -727,7 +725,7 @@ function openTreatmentModal(mode = "add", spec = null) {
         inputThickness.value = "";
         inputSpeed.value = "";
         inputLength.value = "";
-        inputSplice.value = "2.0"; // default splice time
+        inputTimeRoll.value = "";
     }
 
     modal.classList.add("active");
@@ -858,9 +856,9 @@ function setupEventListeners() {
         const thickness = document.getElementById("modal-input-thickness").value.trim();
         const speed = parseFloat(document.getElementById("modal-input-speed").value);
         const length = parseInt(document.getElementById("modal-input-length").value);
-        const splice = parseFloat(document.getElementById("modal-input-splice").value) || 0;
+        const timePerRoll = parseFloat(document.getElementById("modal-input-time-roll").value) || 0;
 
-        if (!code || isNaN(speed) || isNaN(length)) {
+        if (!code || isNaN(speed) || isNaN(length) || isNaN(timePerRoll)) {
             showToast("กรุณากรอกข้อมูลที่จำเป็น (*) ให้ครบถ้วน", "error");
             return;
         }
@@ -873,13 +871,13 @@ function setupEventListeners() {
                 return;
             }
 
-            treatmentDb.push({ code, compound, thickness, speed, length, splice });
+            treatmentDb.push({ code, compound, thickness, speed, length, timePerRoll });
             showToast(`เพิ่มรหัส "${code}" สำเร็จ`);
         } else {
             // Edit mode
             const index = treatmentDb.findIndex(t => t.code === code);
             if (index !== -1) {
-                treatmentDb[index] = { code, compound, thickness, speed, length, splice };
+                treatmentDb[index] = { code, compound, thickness, speed, length, timePerRoll };
                 showToast(`บันทึกรหัส "${code}" สำเร็จ`);
             }
         }
