@@ -72,7 +72,7 @@ const STARTUP_COLOR = "#06b6d4"; // Cyan
 const REMAINING_COLOR = "rgba(255, 255, 255, 0.05)"; // Transparent dark
 const CODE_CHANGE_COLOR = "#a855f7"; // Violet / Purple
 
-const SPECS_VERSION = "1.6";
+const SPECS_VERSION = "1.7";
 if (localStorage.getItem("specs_version") !== SPECS_VERSION) {
     localStorage.setItem("treatment_db", JSON.stringify(DEFAULT_TREATMENTS));
     localStorage.setItem("daily_jobs", JSON.stringify(DEFAULT_JOBS));
@@ -258,8 +258,8 @@ function calculateAll() {
     });
 
     const totalCodeChangeTime = codeChangeCount * singleCodeChangeTime;
-    const startupTime = settings.startupTime || 15;
-    const plannedDowntime = settings.plannedDowntime || 60;
+    const startupTime = settings.startupTime !== undefined ? settings.startupTime : 15;
+    const plannedDowntime = settings.plannedDowntime !== undefined ? settings.plannedDowntime : 0;
     const totalNeededMinutes = startupTime + totalRunMinutes + plannedDowntime + totalCodeChangeTime;
 
     // Shift Calculations
@@ -738,8 +738,8 @@ function closeTreatmentModal() {
 function loadSettingsIntoForm() {
     document.getElementById("setting-start-time").value = settings.startTime || "07:00";
     document.getElementById("setting-end-time").value = settings.endTime || "15:00";
-    document.getElementById("setting-startup-time").value = settings.startupTime || 15;
-    document.getElementById("setting-planned-downtime").value = settings.plannedDowntime || 60;
+    document.getElementById("setting-startup-time").value = settings.startupTime !== undefined ? settings.startupTime : 15;
+    document.getElementById("setting-planned-downtime").value = settings.plannedDowntime !== undefined ? settings.plannedDowntime : 0;
     document.getElementById("setting-code-change-time").value = settings.codeChangeTime || 5;
 }
 
@@ -910,7 +910,7 @@ function exportToCSV() {
 
     const codeChangeRate = settings.codeChangeTime !== undefined ? settings.codeChangeTime : 5;
     csvContent += `เวลาเริ่มงาน,${settings.startTime || "07:00"},,,เวลาเลิกงานปกติ,${settings.endTime || "15:00"},\n`;
-    csvContent += `เวลา Start Up,${settings.startupTime || 15} นาที,,,เวลาหยุด Downtime,${settings.plannedDowntime || 60} นาที,,,เวลาเปลี่ยนโค้ด,${codeChangeRate} นาที/ครั้ง\n\n`;
+    csvContent += `เวลา Start Up,${settings.startupTime !== undefined ? settings.startupTime : 15} นาที,,,เวลาหยุด Downtime,${settings.plannedDowntime !== undefined ? settings.plannedDowntime : 0} นาที,,,เวลาเปลี่ยนโค้ด,${codeChangeRate} นาที/ครั้ง\n\n`;
 
     // Table Headers
     csvContent += "ลำดับ (Seq),รหัสวัสดุ (Code),รหัส Compound,ความหนา (Thickness),ความเร็ว (Speed-MPM),เวลาต่อม้วน (Min/Roll),จำนวนม้วน (Rolls),เวลารวม (Total Time-min)\n";
@@ -939,8 +939,8 @@ function exportToCSV() {
     });
 
     const totalCodeChangeTime = codeChangeCount * codeChangeRate;
-    const startupM = settings.startupTime || 15;
-    const downtimeM = settings.plannedDowntime || 60;
+    const startupM = settings.startupTime !== undefined ? settings.startupTime : 15;
+    const downtimeM = settings.plannedDowntime !== undefined ? settings.plannedDowntime : 0;
     const overallTotal = totalMinutes + startupM + downtimeM + totalCodeChangeTime;
     let otM = 0;
     if (overallTotal > shiftM) {
