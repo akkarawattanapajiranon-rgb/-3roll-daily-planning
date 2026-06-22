@@ -91,7 +91,7 @@ if (localStorage.getItem("specs_version") !== SPECS_VERSION) {
 
 // State variables loaded from LocalStorage or Defaults
 let treatmentDb = JSON.parse(localStorage.getItem("treatment_db")) || DEFAULT_TREATMENTS;
-let currentJobs = JSON.parse(localStorage.getItem("daily_jobs")) || DEFAULT_JOBS;
+let currentJobs = [];
 let settings = JSON.parse(localStorage.getItem("operation_settings")) || DEFAULT_SETTINGS;
 
 // Backup variables for Preview Mode
@@ -913,7 +913,7 @@ function setupEventListeners() {
         if (confirm("ต้องการรีเซ็ตข้อมูลทั้งหมดกลับเป็นค่าเริ่มต้นโรงงานใช่หรือไม่? แผนงานและรหัสที่เพิ่มเข้าไปใหม่จะถูกลบ!")) {
             localStorage.clear();
             treatmentDb = DEFAULT_TREATMENTS;
-            currentJobs = DEFAULT_JOBS;
+            currentJobs = [];
             settings = DEFAULT_SETTINGS;
             
             exitEditMode(true);
@@ -1081,6 +1081,12 @@ function setupEventListeners() {
         }
         
         closeSavePlanModal();
+        
+        // Clear planner data on screen after save
+        currentJobs = [];
+        saveJobsToStorage();
+        renderJobsTable();
+        calculateAll();
         
         const historyTab = document.getElementById("tab-history");
         if (historyTab && historyTab.classList.contains("active")) {
