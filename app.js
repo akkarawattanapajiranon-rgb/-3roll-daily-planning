@@ -1284,7 +1284,6 @@ function openSavePlanModal() {
         const plan = savedPlans.find(p => p.id === editingPlanId);
         if (plan) {
             document.getElementById("save-plan-date").value = plan.date;
-            document.getElementById("save-plan-note").value = plan.note || "";
         }
         if (selectionGroup) {
             selectionGroup.style.display = "block";
@@ -1292,7 +1291,6 @@ function openSavePlanModal() {
             if (overwriteRadio) overwriteRadio.checked = true;
         }
     } else {
-        document.getElementById("save-plan-note").value = "";
         const now = new Date();
         const offset = now.getTimezoneOffset();
         const localDate = new Date(now.getTime() - (offset * 60 * 1000));
@@ -1328,6 +1326,9 @@ function openSavePlanModal() {
     document.getElementById("save-preview-jobs-count").textContent = `${currentJobs.length} รายการ`;
     document.getElementById("save-preview-total-rolls").textContent = `${totalRolls} ม้วน`;
     document.getElementById("save-preview-total-time").textContent = formatMinutes(totalNeededMinutes);
+
+    // Automatically set the Note field to the calculated total time required
+    document.getElementById("save-plan-note").value = formatMinutes(totalNeededMinutes);
 
     document.getElementById("modal-save-plan").classList.add("active");
 }

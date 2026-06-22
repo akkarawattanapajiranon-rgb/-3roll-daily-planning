@@ -407,7 +407,7 @@
                             <thead>
                                 <tr>
                                     <th style="width: 15%;">วันที่ (Date)</th>
-                                    <th style="width: 25%;">บันทึกเพิ่มเติม (Note)</th>
+                                    <th style="width: 25%;">เวลาที่ต้องใช้ (Total Time)</th>
                                     <th style="width: 15%;">จำนวนม้วนทั้งหมด (Total Rolls)</th>
                                     <th style="width: 25%;">ตัวอย่างรหัสงาน (Job Preview)</th>
                                     <th style="width: 20%; text-align: center;">จัดการ (Actions)</th>
@@ -490,8 +490,8 @@
                         <input type="date" id="save-plan-date" required>
                     </div>
                     <div class="form-group">
-                        <label for="save-plan-note">บันทึกเพิ่มเติม (เช่น ชื่อกะ, ผู้รับผิดชอบ หรือหมายเหตุ)</label>
-                        <textarea id="save-plan-note" placeholder="เช่น กะ A - คุณสมชาย, เน้นเป้าหมายพิเศษ" rows="3"></textarea>
+                        <label for="save-plan-note">เวลาที่ต้องใช้ทั้งหมด (Time Required)</label>
+                        <input type="text" id="save-plan-note" readonly class="input-readonly">
                     </div>
                     
                     <div class="form-group" id="save-mode-selection-group" style="display: none;">
