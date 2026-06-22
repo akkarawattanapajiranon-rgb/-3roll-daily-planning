@@ -304,6 +304,18 @@ h1, h2, h3, h4, h5, h6 {
     transform: translateY(-1px);
 }
 
+.btn-success {
+    background-color: var(--color-green);
+    color: white;
+    box-shadow: 0 4px 12px var(--color-green-glow);
+}
+
+.btn-success:hover {
+    background-color: #059669;
+    box-shadow: 0 4px 16px rgba(16, 185, 129, 0.6);
+    transform: translateY(-1px);
+}
+
 .btn-icon-only {
     padding: 6px;
     border-radius: var(--border-radius-sm);
@@ -771,7 +783,7 @@ h1, h2, h3, h4, h5, h6 {
     color: var(--text-muted);
 }
 
-.input-icon-group input, .form-group input {
+.input-icon-group input, .form-group input, .form-group textarea {
     width: 100%;
     background-color: rgba(15, 23, 42, 0.5);
     border: 1px solid var(--border-color);
@@ -784,11 +796,11 @@ h1, h2, h3, h4, h5, h6 {
     transition: var(--transition-normal);
 }
 
-.form-group input:not(.input-icon-group input) {
+.form-group input:not(.input-icon-group input), .form-group textarea {
     padding-left: 16px;
 }
 
-.form-group input:focus {
+.form-group input:focus, .form-group textarea:focus {
     border-color: var(--color-primary);
     box-shadow: 0 0 10px rgba(59, 130, 246, 0.15);
 }
@@ -1001,4 +1013,30 @@ h1, h2, h3, h4, h5, h6 {
         border: 1px solid #ddd !important;
         color: black !important;
     }
+}
+
+/* Job Badge & History Utilities */
+.job-preview-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.job-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 8px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+.job-badge-code {
+    color: var(--text-primary);
+    font-weight: 600;
+    margin-right: 4px;
+}
+.job-badge-rolls {
+    color: var(--color-primary);
 }

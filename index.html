@@ -35,6 +35,10 @@
                     <i class="fa-solid fa-database"></i>
                     <span>ฐานข้อมูล Treatment (Spec DB)</span>
                 </button>
+                <button class="nav-btn" data-tab="history">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                    <span>ประวัติแผนงาน (History Log)</span>
+                </button>
                 <button class="nav-btn" data-tab="settings">
                     <i class="fa-solid fa-sliders"></i>
                     <span>ตั้งค่าเครื่องจักร (Settings)</span>
@@ -55,6 +59,9 @@
                     <p>ป้อนแผนงานประจำวันเพื่อจำลองระยะเวลารันงานและคำนวณชั่วโมงการผลิต</p>
                 </div>
                 <div class="header-actions">
+                    <button id="btn-save-plan-trigger" class="btn btn-success">
+                        <i class="fa-solid fa-floppy-disk"></i> บันทึกแผนงาน
+                    </button>
                     <button id="btn-export-csv" class="btn btn-secondary">
                         <i class="fa-solid fa-file-csv"></i> ส่งออก CSV
                     </button>
@@ -317,6 +324,42 @@
                     </div>
                 </div>
             </section>
+
+            <!-- TAB 4: History Log -->
+            <section id="tab-history" class="tab-content">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <i class="fa-solid fa-clock-rotate-left card-icon" style="color: var(--color-green);"></i>
+                            <div>
+                                <h3>ประวัติแผนงานย้อนหลัง (Daily Planning History Log)</h3>
+                                <p>เรียกดูแผนงานที่บันทึกไว้ในแต่ละวัน โหลดข้อมูลกลับมาแก้ไข หรือส่งออกรายงาน</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 15%;">วันที่ (Date)</th>
+                                    <th style="width: 25%;">บันทึกเพิ่มเติม (Note)</th>
+                                    <th style="width: 15%;">จำนวนม้วนทั้งหมด (Total Rolls)</th>
+                                    <th style="width: 25%;">ตัวอย่างรหัสงาน (Job Preview)</th>
+                                    <th style="width: 20%; text-align: center;">จัดการ (Actions)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="history-plan-list">
+                                <!-- Dynamic rows of saved plans -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="no-history-message" class="empty-state" style="display: flex;">
+                        <i class="fa-solid fa-circle-info"></i>
+                        <p>ไม่มีประวัติการบันทึกแผนงานในระบบ</p>
+                    </div>
+                </div>
+            </section>
         </main>
     </div>
 
@@ -365,6 +408,50 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" id="modal-btn-cancel">ยกเลิก</button>
                 <button type="submit" form="modal-form" class="btn btn-primary" id="modal-btn-save">บันทึกข้อมูล</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Save Plan Confirmation -->
+    <div class="modal-backdrop" id="modal-save-plan">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>บันทึกแผนงานประจำวัน</h3>
+                <button class="modal-close" id="modal-save-btn-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="modal-save-form">
+                    <div class="form-group">
+                        <label for="save-plan-date">วันที่ของแผนงาน <span class="required">*</span></label>
+                        <input type="date" id="save-plan-date" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="save-plan-note">บันทึกเพิ่มเติม (เช่น ชื่อกะ, ผู้รับผิดชอบ หรือหมายเหตุ)</label>
+                        <textarea id="save-plan-note" placeholder="เช่น กะ A - คุณสมชาย, เน้นเป้าหมายพิเศษ" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="status-summary-box" style="margin-top: 16px; background: rgba(255,255,255,0.03);">
+                        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 8px;">สรุปรายการที่จะบันทึก:</p>
+                        <div class="status-row" style="font-size: 13px;">
+                            <span>จำนวนงาน:</span>
+                            <strong id="save-preview-jobs-count">0 รายการ</strong>
+                        </div>
+                        <div class="status-row" style="font-size: 13px;">
+                            <span>จำนวนม้วนทั้งหมด:</span>
+                            <strong id="save-preview-total-rolls">0 ม้วน</strong>
+                        </div>
+                        <div class="status-row" style="font-size: 13px;">
+                            <span>เวลารวมทั้งหมด:</span>
+                            <strong id="save-preview-total-time" class="text-blue">0 นาที</strong>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="modal-save-btn-cancel">ยกเลิก</button>
+                <button type="submit" form="modal-save-form" class="btn btn-success" id="modal-save-btn-confirm">
+                    <i class="fa-solid fa-check"></i> ยืนยันการบันทึก
+                </button>
             </div>
         </div>
     </div>

@@ -156,6 +156,11 @@ function initTabs() {
                     tab.classList.add("active");
                 }
             });
+
+            // Re-render history log if switching to history tab
+            if (targetTab === "history") {
+                renderHistoryTable();
+            }
         });
     });
 }
@@ -888,9 +893,53 @@ function setupEventListeners() {
         renderJobsTable(); // update selection lists in jobs planner
         calculateAll();
     });
+
+    // Save Plan Modal Event Listeners
+    document.getElementById("btn-save-plan-trigger").addEventListener("click", openSavePlanModal);
+    document.getElementById("modal-save-btn-close").addEventListener("click", closeSavePlanModal);
+    document.getElementById("modal-save-btn-cancel").addEventListener("click", closeSavePlanModal);
+    
+    const saveModal = document.getElementById("modal-save-plan");
+    saveModal.addEventListener("click", (e) => {
+        if (e.target === saveModal) closeSavePlanModal();
+    });
+
+    document.getElementById("modal-save-form").addEventListener("submit", (e) => {
+        e.preventDefault();
+        
+        const dateVal = document.getElementById("save-plan-date").value;
+        const noteVal = document.getElementById("save-plan-note").value.trim();
+        
+        if (!dateVal) {
+            showToast("กรุณาระบุวันที่ของแผนงาน", "error");
+            return;
+        }
+
+        const savedPlans = JSON.parse(localStorage.getItem("saved_plans")) || [];
+        
+        const newPlan = {
+            id: "plan_" + Date.now(),
+            date: dateVal,
+            note: noteVal,
+            jobs: JSON.parse(JSON.stringify(currentJobs)),
+            settings: JSON.parse(JSON.stringify(settings)),
+            timestamp: Date.now()
+        };
+
+        savedPlans.push(newPlan);
+        localStorage.setItem("saved_plans", JSON.stringify(savedPlans));
+        
+        closeSavePlanModal();
+        showToast("บันทึกแผนงานประจำวันเรียบร้อยแล้ว", "success");
+        
+        const historyTab = document.getElementById("tab-history");
+        if (historyTab && historyTab.classList.contains("active")) {
+            renderHistoryTable();
+        }
+    });
 }
 
-function exportToCSV() {
+function exportToCSV(dateStr) {
     if (currentJobs.length === 0) {
         showToast("ไม่มีรายการทำงานที่จะส่งออก", "error");
         return;
@@ -927,7 +976,7 @@ function exportToCSV() {
         totalRolls += job.rolls;
         totalMinutes += totalJobTime;
 
-        csvContent += `${index + 1},${job.code},${spec.compound || "-"},${spec.thickness},${spec.speed},${calcs.totalTimePerRoll},${job.rolls},${totalJobTime.toFixed(1)}\n`;
+        csvContent += `${index + 1},${job.code},${spec ? (spec.compound || "-") : "-"},${spec ? spec.thickness : "-"},${spec ? spec.speed : "-"},${calcs.totalTimePerRoll},${job.rolls},${totalJobTime.toFixed(1)}\n`;
 
         // Count code changes
         if (index < currentJobs.length - 1) {
@@ -962,8 +1011,204 @@ function exportToCSV() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute("download", `3roll-daily-planning-${new Date().toISOString().slice(0, 10)}.csv`);
+    
+    const filenameDate = typeof dateStr === 'string' ? dateStr : new Date().toISOString().slice(0, 10);
+    link.setAttribute("download", `3roll-daily-planning-${filenameDate}.csv`);
+    
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+}
+
+// ==========================================
+// 9. DAILY PLAN SAVE & HISTORY LOG SYSTEM
+// ==========================================
+
+function openSavePlanModal() {
+    if (currentJobs.length === 0) {
+        showToast("ไม่มีรายการทำงานที่จะบันทึก", "error");
+        return;
+    }
+    
+    document.getElementById("save-plan-note").value = "";
+    
+    const now = new Date();
+    const offset = now.getTimezoneOffset();
+    const localDate = new Date(now.getTime() - (offset * 60 * 1000));
+    document.getElementById("save-plan-date").value = localDate.toISOString().split("T")[0];
+
+    const totalRolls = currentJobs.reduce((sum, j) => sum + j.rolls, 0);
+    let totalRunMinutes = 0;
+    let codeChangeCount = 0;
+    const singleCodeChangeTime = settings.codeChangeTime !== undefined ? settings.codeChangeTime : 5;
+    
+    currentJobs.forEach((job, index) => {
+        const spec = treatmentDb.find(t => t.code === job.code);
+        if (!spec) return;
+        const calcs = getTreatmentCalculations(spec);
+        totalRunMinutes += calcs.totalTimePerRoll * job.rolls;
+        if (index < currentJobs.length - 1) {
+            const nextJob = currentJobs[index + 1];
+            if (nextJob.code !== job.code) {
+                codeChangeCount++;
+            }
+        }
+    });
+    
+    const totalCodeChangeTime = codeChangeCount * singleCodeChangeTime;
+    const startupTime = settings.startupTime !== undefined ? settings.startupTime : 15;
+    const plannedDowntime = settings.plannedDowntime !== undefined ? settings.plannedDowntime : 0;
+    const totalNeededMinutes = startupTime + totalRunMinutes + plannedDowntime + totalCodeChangeTime;
+
+    document.getElementById("save-preview-jobs-count").textContent = `${currentJobs.length} รายการ`;
+    document.getElementById("save-preview-total-rolls").textContent = `${totalRolls} ม้วน`;
+    document.getElementById("save-preview-total-time").textContent = formatMinutes(totalNeededMinutes);
+
+    document.getElementById("modal-save-plan").classList.add("active");
+}
+
+function closeSavePlanModal() {
+    document.getElementById("modal-save-plan").classList.remove("active");
+}
+
+function renderHistoryTable() {
+    const tbody = document.getElementById("history-plan-list");
+    const emptyState = document.getElementById("no-history-message");
+    if (!tbody || !emptyState) return;
+
+    tbody.innerHTML = "";
+    const savedPlans = JSON.parse(localStorage.getItem("saved_plans")) || [];
+
+    if (savedPlans.length === 0) {
+        emptyState.style.display = "flex";
+        return;
+    }
+    emptyState.style.display = "none";
+
+    savedPlans.sort((a, b) => b.timestamp - a.timestamp);
+
+    savedPlans.forEach(plan => {
+        const tr = document.createElement("tr");
+        const totalRolls = plan.jobs.reduce((sum, j) => sum + j.rolls, 0);
+
+        let badgesHtml = '<div class="job-preview-container">';
+        plan.jobs.forEach(j => {
+            badgesHtml += `
+                <span class="job-badge">
+                    <span class="job-badge-code">${j.code}</span>
+                    <span class="job-badge-rolls">(${j.rolls})</span>
+                </span>
+            `;
+        });
+        badgesHtml += '</div>';
+
+        const dateObj = new Date(plan.date);
+        const thaiDate = dateObj.toLocaleDateString("th-TH", { year: "numeric", month: "short", day: "numeric" });
+
+        tr.innerHTML = `
+            <td class="text-bold">${thaiDate}</td>
+            <td class="text-muted">${plan.note || "-"}</td>
+            <td class="text-bold text-highlight">${totalRolls} ม้วน</td>
+            <td>${badgesHtml}</td>
+            <td style="text-align: center;">
+                <button class="btn btn-primary btn-sm btn-load-plan" data-id="${plan.id}" title="โหลดแผนงานนี้เข้าสู่ระบบ">
+                    <i class="fa-solid fa-cloud-arrow-down"></i> โหลดแผน
+                </button>
+                <button class="btn btn-secondary btn-sm btn-export-history-csv" data-id="${plan.id}" title="ส่งออก CSV แผนงานนี้">
+                    <i class="fa-solid fa-file-csv"></i> CSV
+                </button>
+                <button class="btn btn-danger btn-sm btn-delete-plan" data-id="${plan.id}" title="ลบแผนงานย้อนหลัง">
+                    <i class="fa-solid fa-trash-can"></i>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    attachHistoryActions();
+}
+
+function attachHistoryActions() {
+    document.querySelectorAll(".btn-load-plan").forEach(btn => {
+        btn.addEventListener("click", () => {
+            const planId = btn.getAttribute("data-id");
+            if (confirm("ต้องการโหลดแผนงานนี้เข้ามาแทนที่แผนงานปัจจุบันใช่หรือไม่? ข้อมูลปัจจุบันที่ยังไม่ได้บันทึกจะหายไป")) {
+                loadPlanFromHistory(planId);
+            }
+        });
+    });
+
+    document.querySelectorAll(".btn-export-history-csv").forEach(btn => {
+        btn.addEventListener("click", () => {
+            const planId = btn.getAttribute("data-id");
+            exportHistoryPlanToCSV(planId);
+        });
+    });
+
+    document.querySelectorAll(".btn-delete-plan").forEach(btn => {
+        btn.addEventListener("click", () => {
+            const planId = btn.getAttribute("data-id");
+            if (confirm("คุณต้องการลบประวัติแผนงานนี้ใช่หรือไม่?")) {
+                deletePlanFromHistory(planId);
+            }
+        });
+    });
+}
+
+function loadPlanFromHistory(planId) {
+    const savedPlans = JSON.parse(localStorage.getItem("saved_plans")) || [];
+    const plan = savedPlans.find(p => p.id === planId);
+    if (!plan) {
+        showToast("ไม่พบข้อมูลแผนงาน", "error");
+        return;
+    }
+
+    currentJobs = JSON.parse(JSON.stringify(plan.jobs));
+    if (plan.settings) {
+        settings = JSON.parse(JSON.stringify(plan.settings));
+    }
+
+    saveJobsToStorage();
+    saveSettingsToStorage();
+
+    loadSettingsIntoForm();
+    renderJobsTable();
+    calculateAll();
+
+    showToast("โหลดแผนงานประวัติย้อนหลังเรียบร้อยแล้ว", "success");
+
+    const plannerBtn = document.querySelector('.nav-btn[data-tab="planner"]');
+    if (plannerBtn) {
+        plannerBtn.click();
+    }
+}
+
+function exportHistoryPlanToCSV(planId) {
+    const savedPlans = JSON.parse(localStorage.getItem("saved_plans")) || [];
+    const plan = savedPlans.find(p => p.id === planId);
+    if (!plan) {
+        showToast("ไม่พบข้อมูลแผนงาน", "error");
+        return;
+    }
+
+    const originalJobs = JSON.parse(JSON.stringify(currentJobs));
+    const originalSettings = JSON.parse(JSON.stringify(settings));
+
+    currentJobs = plan.jobs;
+    settings = plan.settings || settings;
+
+    exportToCSV(plan.date);
+
+    currentJobs = originalJobs;
+    settings = originalSettings;
+
+    showToast("ส่งออกไฟล์ CSV เรียบร้อยแล้ว", "success");
+}
+
+function deletePlanFromHistory(planId) {
+    let savedPlans = JSON.parse(localStorage.getItem("saved_plans")) || [];
+    savedPlans = savedPlans.filter(p => p.id !== planId);
+    localStorage.setItem("saved_plans", JSON.stringify(savedPlans));
+    renderHistoryTable();
+    showToast("ลบประวัติแผนงานเรียบร้อยแล้ว", "success");
 }
