@@ -84,11 +84,11 @@ h1, h2, h3, h4, h5, h6 {
     background: var(--bg-base);
 }
 ::-webkit-scrollbar-thumb {
-    background: #1e293b;
+    background: #cbd5e1;
     border-radius: var(--border-radius-sm);
 }
 ::-webkit-scrollbar-thumb:hover {
-    background: #334155;
+    background: #94a3b8;
 }
 
 /* Application Layout */
@@ -288,15 +288,17 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .btn-secondary {
-    background-color: #1e293b;
-    border-color: #334155;
+    background-color: #e2e8f0;
+    border-color: #cbd5e1;
     color: var(--text-primary);
 }
 
 .btn-secondary:hover {
-    background-color: #334155;
-    color: white;
+    background-color: #cbd5e1;
+    border-color: #94a3b8;
+    color: var(--text-primary);
 }
+
 
 .btn-danger {
     background-color: var(--color-danger);
@@ -906,9 +908,11 @@ h1, h2, h3, h4, h5, h6 {
     position: fixed;
     bottom: 30px;
     right: 30px;
-    background-color: #1e293b;
-    border: 1px solid var(--border-color-glow);
-    color: white;
+    background-color: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--color-primary-glow);
+    color: var(--text-primary);
     padding: 12px 24px;
     border-radius: var(--border-radius-md);
     box-shadow: var(--shadow-lg);
