@@ -1040,3 +1040,60 @@ h1, h2, h3, h4, h5, h6 {
 .job-badge-rolls {
     color: var(--color-primary);
 }
+
+/* Preview Mode Banner Styles */
+.preview-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    background: rgba(249, 115, 22, 0.15);
+    border: 1px solid rgba(249, 115, 22, 0.4);
+    border-radius: var(--border-radius-md);
+    color: #fdba74;
+    font-family: var(--font-display);
+    font-weight: 500;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 16px rgba(249, 115, 22, 0.1);
+    animation: pulseBorder 2s infinite ease-in-out;
+}
+
+@keyframes pulseBorder {
+    0%, 100% { border-color: rgba(249, 115, 22, 0.4); box-shadow: 0 4px 16px rgba(249, 115, 22, 0.1); }
+    50% { border-color: rgba(249, 115, 22, 0.8); box-shadow: 0 4px 24px rgba(249, 115, 22, 0.25); }
+}
+
+.preview-banner-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 15px;
+}
+
+.preview-banner-content i {
+    font-size: 18px;
+    color: var(--color-orange);
+}
+
+.animate-pulse {
+    animation: pulseIcon 1.5s infinite ease-in-out;
+}
+
+@keyframes pulseIcon {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.15); opacity: 0.8; }
+}
+
+/* Disabled Form Controls styling for Planner Preview Mode */
+.select-input:disabled, .number-input:disabled {
+    background-color: rgba(15, 23, 42, 0.8) !important;
+    border-color: rgba(255, 255, 255, 0.04) !important;
+    color: var(--text-secondary) !important;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+.btn-delete-row:disabled {
+    display: none !important;
+}
+

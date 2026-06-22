@@ -85,6 +85,12 @@ let treatmentDb = JSON.parse(localStorage.getItem("treatment_db")) || DEFAULT_TR
 let currentJobs = JSON.parse(localStorage.getItem("daily_jobs")) || DEFAULT_JOBS;
 let settings = JSON.parse(localStorage.getItem("operation_settings")) || DEFAULT_SETTINGS;
 
+// Backup variables for Preview Mode
+let originalJobsBackup = null;
+let originalSettingsBackup = null;
+let isPreviewMode = false;
+let previewPlanId = null;
+
 // Save helper functions
 function saveDbToStorage() {
     localStorage.setItem("treatment_db", JSON.stringify(treatmentDb));
@@ -144,6 +150,11 @@ function initTabs() {
     navButtons.forEach(btn => {
         btn.addEventListener("click", () => {
             const targetTab = btn.getAttribute("data-tab");
+
+            // If switching away from planner or history, exit preview mode
+            if (isPreviewMode && targetTab !== "planner" && targetTab !== "history") {
+                exitPreviewMode();
+            }
 
             // Update Active Nav Button
             navButtons.forEach(b => b.classList.remove("active"));
@@ -502,6 +513,20 @@ function renderJobsTable() {
     
     tbody.innerHTML = "";
 
+    // Show/hide add job button based on preview mode
+    const addJobBtn = document.getElementById("btn-add-job");
+    if (addJobBtn) {
+        addJobBtn.disabled = isPreviewMode;
+        addJobBtn.style.display = isPreviewMode ? "none" : "inline-flex";
+    }
+    
+    // Show/hide save plan button in header based on preview mode
+    const saveTriggerBtn = document.getElementById("btn-save-plan-trigger");
+    if (saveTriggerBtn) {
+        saveTriggerBtn.disabled = isPreviewMode;
+        saveTriggerBtn.style.display = isPreviewMode ? "none" : "inline-flex";
+    }
+
     if (currentJobs.length === 0) {
         emptyState.style.display = "flex";
         return;
@@ -527,9 +552,11 @@ function renderJobsTable() {
         const calcs = getTreatmentCalculations(spec);
         const rowTotalMinutes = calcs.totalTimePerRoll * job.rolls;
 
+        const disabledAttr = isPreviewMode ? "disabled" : "";
+
         tr.innerHTML = `
             <td>
-                <select class="select-input job-code-select">
+                <select class="select-input job-code-select" ${disabledAttr}>
                     ${optionsHtml}
                 </select>
             </td>
@@ -538,11 +565,11 @@ function renderJobsTable() {
             <td><span class="job-speed text-muted">${spec ? spec.speed : "-"} MPM</span></td>
             <td><span class="job-time-per-roll text-bold">${calcs.totalTimePerRoll} นาที</span></td>
             <td>
-                <input type="number" class="number-input job-rolls-input" min="1" step="1" value="${job.rolls}">
+                <input type="number" class="number-input job-rolls-input" min="1" step="1" value="${job.rolls}" ${disabledAttr}>
             </td>
             <td><span class="job-total-time text-highlight">${formatMinutes(rowTotalMinutes)}</span></td>
             <td style="text-align: center;">
-                <button class="btn-delete-row" title="ลบรายการรันงาน">
+                <button class="btn-delete-row" title="ลบรายการรันงาน" ${disabledAttr}>
                     <i class="fa-solid fa-trash-can"></i>
                 </button>
             </td>
@@ -552,7 +579,9 @@ function renderJobsTable() {
     });
 
     // Attach row events
-    attachRowEventListeners();
+    if (!isPreviewMode) {
+        attachRowEventListeners();
+    }
 }
 
 function attachRowEventListeners() {
@@ -937,6 +966,12 @@ function setupEventListeners() {
             renderHistoryTable();
         }
     });
+
+    // Exit Preview Mode Event Listener
+    const exitPreviewBtn = document.getElementById("btn-exit-preview");
+    if (exitPreviewBtn) {
+        exitPreviewBtn.addEventListener("click", exitPreviewMode);
+    }
 }
 
 function exportToCSV(dateStr) {
@@ -1111,6 +1146,9 @@ function renderHistoryTable() {
             <td class="text-bold text-highlight">${totalRolls} ม้วน</td>
             <td>${badgesHtml}</td>
             <td style="text-align: center;">
+                <button class="btn btn-success btn-sm btn-preview-plan" data-id="${plan.id}" title="ดูรายละเอียดบนแดชบอร์ด">
+                    <i class="fa-solid fa-gauge"></i> ดูแดชบอร์ด
+                </button>
                 <button class="btn btn-primary btn-sm btn-load-plan" data-id="${plan.id}" title="โหลดแผนงานนี้เข้าสู่ระบบ">
                     <i class="fa-solid fa-cloud-arrow-down"></i> โหลดแผน
                 </button>
@@ -1129,6 +1167,13 @@ function renderHistoryTable() {
 }
 
 function attachHistoryActions() {
+    document.querySelectorAll(".btn-preview-plan").forEach(btn => {
+        btn.addEventListener("click", () => {
+            const planId = btn.getAttribute("data-id");
+            enterPreviewMode(planId);
+        });
+    });
+
     document.querySelectorAll(".btn-load-plan").forEach(btn => {
         btn.addEventListener("click", () => {
             const planId = btn.getAttribute("data-id");
@@ -1209,6 +1254,92 @@ function deletePlanFromHistory(planId) {
     let savedPlans = JSON.parse(localStorage.getItem("saved_plans")) || [];
     savedPlans = savedPlans.filter(p => p.id !== planId);
     localStorage.setItem("saved_plans", JSON.stringify(savedPlans));
+    
+    // If the plan being deleted is currently previewed, exit preview mode
+    if (isPreviewMode && previewPlanId === planId) {
+        exitPreviewMode();
+    }
+    
     renderHistoryTable();
     showToast("ลบประวัติแผนงานเรียบร้อยแล้ว", "success");
+}
+
+function enterPreviewMode(planId) {
+    const savedPlans = JSON.parse(localStorage.getItem("saved_plans")) || [];
+    const plan = savedPlans.find(p => p.id === planId);
+    if (!plan) {
+        showToast("ไม่พบข้อมูลแผนงาน", "error");
+        return;
+    }
+
+    // Save active state if not already in preview mode
+    if (!isPreviewMode) {
+        originalJobsBackup = JSON.parse(JSON.stringify(currentJobs));
+        originalSettingsBackup = JSON.parse(JSON.stringify(settings));
+    }
+
+    // Load history plan data
+    currentJobs = JSON.parse(JSON.stringify(plan.jobs));
+    settings = JSON.parse(JSON.stringify(plan.settings || settings));
+    
+    isPreviewMode = true;
+    previewPlanId = planId;
+
+    // Display banner and set text
+    const banner = document.getElementById("preview-mode-banner");
+    const dateEl = document.getElementById("preview-banner-date");
+    const noteEl = document.getElementById("preview-banner-note");
+    const noteWrap = document.getElementById("preview-banner-note-wrap");
+
+    if (banner) {
+        const dateObj = new Date(plan.date);
+        const thaiDate = dateObj.toLocaleDateString("th-TH", { year: "numeric", month: "short", day: "numeric" });
+        dateEl.textContent = thaiDate;
+        
+        if (plan.note) {
+            noteEl.textContent = plan.note;
+            noteWrap.style.display = "inline";
+        } else {
+            noteWrap.style.display = "none";
+        }
+        
+        banner.style.display = "flex";
+    }
+
+    // Recalculate and re-render Planner
+    renderJobsTable();
+    calculateAll();
+
+    // Switch tab to Planner
+    const plannerBtn = document.querySelector('.nav-btn[data-tab="planner"]');
+    if (plannerBtn) {
+        plannerBtn.click();
+    }
+    
+    showToast("กำลังแสดงพรีวิวประวัติแผนงานย้อนหลัง", "success");
+}
+
+function exitPreviewMode() {
+    if (!isPreviewMode) return;
+
+    // Restore active state
+    if (originalJobsBackup) currentJobs = originalJobsBackup;
+    if (originalSettingsBackup) settings = originalSettingsBackup;
+
+    originalJobsBackup = null;
+    originalSettingsBackup = null;
+    isPreviewMode = false;
+    previewPlanId = null;
+
+    // Hide banner
+    const banner = document.getElementById("preview-mode-banner");
+    if (banner) {
+        banner.style.display = "none";
+    }
+
+    // Recalculate and re-render Planner
+    renderJobsTable();
+    calculateAll();
+    
+    showToast("กลับสู่แผนงานปัจจุบันเรียบร้อยแล้ว", "success");
 }

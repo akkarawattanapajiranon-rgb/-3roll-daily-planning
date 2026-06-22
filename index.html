@@ -73,6 +73,16 @@
 
             <!-- TAB 1: Planner -->
             <section id="tab-planner" class="tab-content active">
+                <!-- Preview Mode Banner -->
+                <div id="preview-mode-banner" class="preview-banner" style="display: none;">
+                    <div class="preview-banner-content">
+                        <i class="fa-solid fa-triangle-exclamation animate-pulse"></i>
+                        <span>คุณกำลังดูประวัติแผนงานย้อนหลังวันที่ <strong id="preview-banner-date">--/--/----</strong> <span id="preview-banner-note-wrap">(บันทึก: <span id="preview-banner-note">-</span>)</span></span>
+                    </div>
+                    <button id="btn-exit-preview" class="btn btn-secondary btn-sm">
+                        <i class="fa-solid fa-circle-xmark"></i> กลับสู่แผนงานปัจจุบัน
+                    </button>
+                </div>
                 <!-- KPI Summary Panel -->
                 <div class="kpi-grid">
                     <div class="kpi-card">
