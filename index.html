@@ -266,71 +266,115 @@
 
             <!-- TAB 3: Operational Settings -->
             <section id="tab-settings" class="tab-content">
-                <div class="card max-w-md">
-                    <div class="card-header">
-                        <div class="card-title-group">
-                            <i class="fa-solid fa-gears card-icon text-blue"></i>
-                            <div>
-                                <h3>ตั้งค่าการทำงานประจำวัน (Operational Constants)</h3>
-                                <p>กำหนดมาตรฐานกะทำงานและระยะเวลาหยุดเครื่องเพื่อนำไปใช้คำนวณกำลังผลิต</p>
+                <div class="settings-grid">
+                    <!-- Operational Constants Card -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title-group">
+                                <i class="fa-solid fa-gears card-icon text-blue"></i>
+                                <div>
+                                    <h3>ตั้งค่าการทำงานประจำวัน (Operational Constants)</h3>
+                                    <p>กำหนดมาตรฐานกะทำงานและระยะเวลาหยุดเครื่องเพื่อนำไปใช้คำนวณกำลังผลิต</p>
+                                </div>
                             </div>
                         </div>
+                        <div class="card-body">
+                            <form id="settings-form" class="settings-form">
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                                    <div class="form-group">
+                                        <label for="setting-start-time">เวลาเริ่มทำงานปกติ (Start Time)</label>
+                                        <div class="input-icon-group" style="position: relative; display: flex; align-items: center;">
+                                            <i class="fa-solid fa-play" style="position: absolute; left: 14px; color: var(--text-muted);"></i>
+                                            <input type="time" id="setting-start-time" value="07:00" style="padding-left: 42px;">
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="setting-end-time">เวลาเลิกงานปกติ (End Time)</label>
+                                        <div class="input-icon-group" style="position: relative; display: flex; align-items: center;">
+                                            <i class="fa-solid fa-stop" style="position: absolute; left: 14px; color: var(--text-muted);"></i>
+                                            <input type="time" id="setting-end-time" value="15:00" style="padding-left: 42px;">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-top: 12px;">
+                                    <div class="form-group">
+                                        <label for="setting-startup-time">เวลาเตรียมระบบ Start Up (นาที)</label>
+                                        <div class="input-icon-group" style="position: relative; display: flex; align-items: center;">
+                                            <i class="fa-solid fa-bolt" style="position: absolute; left: 14px; color: var(--text-muted);"></i>
+                                            <input type="number" id="setting-startup-time" min="0" max="60" value="15" style="padding-left: 42px;">
+                                        </div>
+                                        <span class="help-text">ทั่วไปกำหนด 15 - 30 นาที</span>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="setting-planned-downtime">เวลาหยุดตามแผน (Downtime - นาที)</label>
+                                        <div class="input-icon-group" style="position: relative; display: flex; align-items: center;">
+                                            <i class="fa-solid fa-wrench" style="position: absolute; left: 14px; color: var(--text-muted);"></i>
+                                            <input type="number" id="setting-planned-downtime" min="0" max="1440" value="0" style="padding-left: 42px;">
+                                        </div>
+                                        <span class="help-text">เวลาซ่อมบำรุง/พักสะสมต่อวัน</span>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="setting-code-change-time">เวลาเปลี่ยนโค้ด (นาที/ครั้ง)</label>
+                                        <div class="input-icon-group" style="position: relative; display: flex; align-items: center;">
+                                            <i class="fa-solid fa-arrows-spin" style="position: absolute; left: 14px; color: var(--text-muted);"></i>
+                                            <input type="number" id="setting-code-change-time" min="0" max="60" value="5" style="padding-left: 42px;">
+                                        </div>
+                                        <span class="help-text">ทั่วไปกำหนด 5 นาทีต่อโค้ด</span>
+                                    </div>
+                                </div>
+
+                                <div class="form-action-group">
+                                    <button type="button" id="btn-save-settings" class="btn btn-primary">
+                                        <i class="fa-solid fa-floppy-disk"></i> บันทึกการตั้งค่า
+                                    </button>
+                                    <button type="button" id="btn-reset-db" class="btn btn-danger">
+                                        <i class="fa-solid fa-trash-can"></i> รีเซ็ตฐานข้อมูลทั้งหมด
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
-                    <div class="card-body">
-                        <form id="settings-form" class="settings-form">
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-                                <div class="form-group">
-                                    <label for="setting-start-time">เวลาเริ่มทำงานปกติ (Start Time)</label>
-                                    <div class="input-icon-group" style="position: relative; display: flex; align-items: center;">
-                                        <i class="fa-solid fa-play" style="position: absolute; left: 14px; color: var(--text-muted);"></i>
-                                        <input type="time" id="setting-start-time" value="07:00" style="padding-left: 42px;">
-                                    </div>
-                                </div>
-                                <div class="form-group">
-                                    <label for="setting-end-time">เวลาเลิกงานปกติ (End Time)</label>
-                                    <div class="input-icon-group" style="position: relative; display: flex; align-items: center;">
-                                        <i class="fa-solid fa-stop" style="position: absolute; left: 14px; color: var(--text-muted);"></i>
-                                        <input type="time" id="setting-end-time" value="15:00" style="padding-left: 42px;">
-                                    </div>
-                                </div>
-                            </div>
 
-                            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-top: 12px;">
-                                <div class="form-group">
-                                    <label for="setting-startup-time">เวลาเตรียมระบบ Start Up (นาที)</label>
-                                    <div class="input-icon-group" style="position: relative; display: flex; align-items: center;">
-                                        <i class="fa-solid fa-bolt" style="position: absolute; left: 14px; color: var(--text-muted);"></i>
-                                        <input type="number" id="setting-startup-time" min="0" max="60" value="15" style="padding-left: 42px;">
-                                    </div>
-                                    <span class="help-text">ทั่วไปกำหนด 15 - 30 นาที</span>
-                                </div>
-                                <div class="form-group">
-                                    <label for="setting-planned-downtime">เวลาหยุดตามแผน (Downtime - นาที)</label>
-                                    <div class="input-icon-group" style="position: relative; display: flex; align-items: center;">
-                                        <i class="fa-solid fa-wrench" style="position: absolute; left: 14px; color: var(--text-muted);"></i>
-                                        <input type="number" id="setting-planned-downtime" min="0" max="1440" value="0" style="padding-left: 42px;">
-                                    </div>
-                                    <span class="help-text">เวลาซ่อมบำรุง/พักสะสมต่อวัน</span>
-                                </div>
-                                <div class="form-group">
-                                    <label for="setting-code-change-time">เวลาเปลี่ยนโค้ด (นาที/ครั้ง)</label>
-                                    <div class="input-icon-group" style="position: relative; display: flex; align-items: center;">
-                                        <i class="fa-solid fa-arrows-spin" style="position: absolute; left: 14px; color: var(--text-muted);"></i>
-                                        <input type="number" id="setting-code-change-time" min="0" max="60" value="5" style="padding-left: 42px;">
-                                    </div>
-                                    <span class="help-text">ทั่วไปกำหนด 5 นาทีต่อโค้ด</span>
+                    <!-- Cloud Database Sync Card -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title-group">
+                                <i class="fa-solid fa-cloud card-icon text-green"></i>
+                                <div>
+                                    <h3>เชื่อมต่อฐานข้อมูลร่วมกัน (Cloud Database Sync)</h3>
+                                    <p>แชร์ข้อมูลการตั้งค่า รหัสวัสดุ และประวัติร่วมกันทุกเครื่องในแผนก</p>
                                 </div>
                             </div>
+                        </div>
+                        <div class="card-body">
+                            <form id="cloud-sync-form" class="settings-form" onsubmit="event.preventDefault();">
+                                <div class="form-group">
+                                    <label for="setting-firebase-url">Firebase Database URL</label>
+                                    <div class="input-icon-group" style="position: relative; display: flex; align-items: center;">
+                                        <i class="fa-solid fa-link" style="position: absolute; left: 14px; color: var(--text-muted);"></i>
+                                        <input type="url" id="setting-firebase-url" placeholder="เช่น https://your-project-id.firebaseio.com" style="padding-left: 42px;">
+                                    </div>
+                                    <span class="help-text">กรอก URL ของ Firebase Realtime Database ของคุณเพื่อซิงค์ข้อมูลข้ามเครื่อง (ปล่อยว่างเพื่อใช้เฉพาะเครื่องนี้)</span>
+                                </div>
 
-                            <div class="form-action-group">
-                                <button type="button" id="btn-save-settings" class="btn btn-primary">
-                                    <i class="fa-solid fa-floppy-disk"></i> บันทึกการตั้งค่า
-                                </button>
-                                <button type="button" id="btn-reset-db" class="btn btn-danger">
-                                    <i class="fa-solid fa-trash-can"></i> รีเซ็ตฐานข้อมูลทั้งหมด
-                                </button>
-                            </div>
-                        </form>
+                                <div class="status-summary-box" style="margin-top: 16px; background: rgba(255,255,255,0.03);">
+                                    <div class="status-row" style="font-size: 13px;">
+                                        <span>สถานะการเชื่อมต่อ:</span>
+                                        <strong id="cloud-connection-status" class="text-muted">กำลังใช้ฐานข้อมูลภายในเครื่อง (Local Storage)</strong>
+                                    </div>
+                                </div>
+
+                                <div class="form-action-group" style="margin-top: 20px;">
+                                    <button type="button" id="btn-save-cloud" class="btn btn-success">
+                                        <i class="fa-solid fa-cloud-arrow-up"></i> บันทึกการเชื่อมต่อ Cloud
+                                    </button>
+                                    <button type="button" id="btn-clear-cloud" class="btn btn-secondary">
+                                        <i class="fa-solid fa-trash-can"></i> ยกเลิกการซิงค์ Cloud
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
                 </div>
             </section>

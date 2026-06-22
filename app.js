@@ -46,7 +46,8 @@ const DEFAULT_SETTINGS = {
     endTime: "15:00",
     startupTime: 15,
     plannedDowntime: 0,
-    codeChangeTime: 5
+    codeChangeTime: 5,
+    firebaseUrl: ""
 };
 
 const DEFAULT_JOBS = [
@@ -94,6 +95,9 @@ let previewPlanId = null;
 // Save helper functions
 function saveDbToStorage() {
     localStorage.setItem("treatment_db", JSON.stringify(treatmentDb));
+    if (settings.firebaseUrl) {
+        saveCloudData("treatment_db", treatmentDb);
+    }
 }
 
 function saveJobsToStorage() {
@@ -102,6 +106,9 @@ function saveJobsToStorage() {
 
 function saveSettingsToStorage() {
     localStorage.setItem("operation_settings", JSON.stringify(settings));
+    if (settings.firebaseUrl) {
+        saveCloudData("operation_settings", settings);
+    }
 }
 
 // ==========================================
@@ -109,27 +116,57 @@ function saveSettingsToStorage() {
 // ==========================================
 
 document.addEventListener("DOMContentLoaded", () => {
-    // Start Live Clock
-    initLiveClock();
-
-    // Setup Navigation Tabs
-    initTabs();
-
-    // Load Settings in form
-    loadSettingsIntoForm();
-
-    // Populate Master DB UI
-    renderDatabaseTable();
-
-    // Initialize Jobs Table
-    renderJobsTable();
-
-    // Attach Event Listeners
-    setupEventListeners();
-
-    // Initial Calculation & Drawing
-    calculateAll();
+    initializeSystem();
 });
+
+async function initializeSystem() {
+    initLiveClock();
+    initTabs();
+    
+    // Check if cloud sync is configured
+    if (settings.firebaseUrl) {
+        updateCloudStatusUI("connecting");
+        
+        // Fetch data from Firebase
+        const cloudDb = await fetchCloudData("treatment_db");
+        const cloudPlans = await fetchCloudData("saved_plans");
+        const cloudSettings = await fetchCloudData("operation_settings");
+        
+        let syncSuccess = false;
+        
+        if (cloudDb !== null) {
+            treatmentDb = cloudDb;
+            localStorage.setItem("treatment_db", JSON.stringify(treatmentDb));
+            syncSuccess = true;
+        }
+        if (cloudPlans !== null) {
+            localStorage.setItem("saved_plans", JSON.stringify(cloudPlans));
+            syncSuccess = true;
+        }
+        if (cloudSettings !== null) {
+            const oldUrl = settings.firebaseUrl;
+            settings = { ...DEFAULT_SETTINGS, ...cloudSettings, firebaseUrl: oldUrl };
+            localStorage.setItem("operation_settings", JSON.stringify(settings));
+            syncSuccess = true;
+        }
+        
+        if (syncSuccess) {
+            updateCloudStatusUI("connected");
+            showToast("เชื่อมต่อและซิงค์ข้อมูลกับ Cloud สำเร็จ", "success");
+        } else {
+            updateCloudStatusUI("error");
+            showToast("การเชื่อมต่อ Cloud ขัดข้อง กำลังใช้ข้อมูลในเครื่อง", "error");
+        }
+    } else {
+        updateCloudStatusUI("local");
+    }
+
+    loadSettingsIntoForm();
+    renderDatabaseTable();
+    renderJobsTable();
+    setupEventListeners();
+    calculateAll();
+}
 
 // ==========================================
 // 3. UI HELPER & SYSTEM FUNCTIONS
@@ -965,12 +1002,92 @@ function setupEventListeners() {
         if (historyTab && historyTab.classList.contains("active")) {
             renderHistoryTable();
         }
+        
+        if (settings.firebaseUrl) {
+            saveCloudData("saved_plans", savedPlans);
+        }
     });
 
     // Exit Preview Mode Event Listener
     const exitPreviewBtn = document.getElementById("btn-exit-preview");
     if (exitPreviewBtn) {
         exitPreviewBtn.addEventListener("click", exitPreviewMode);
+    }
+
+    // Cloud Database Save Sync
+    const btnSaveCloud = document.getElementById("btn-save-cloud");
+    if (btnSaveCloud) {
+        btnSaveCloud.addEventListener("click", async () => {
+            const urlInput = document.getElementById("setting-firebase-url").value.trim();
+            if (!urlInput) {
+                showToast("กรุณากรอก URL ของ Firebase", "error");
+                return;
+            }
+            
+            if (!urlInput.startsWith("http://") && !urlInput.startsWith("https://")) {
+                showToast("URL ต้องเริ่มต้นด้วย http:// หรือ https://", "error");
+                return;
+            }
+
+            settings.firebaseUrl = urlInput;
+            saveSettingsToStorage();
+            
+            updateCloudStatusUI("connecting");
+            
+            const testFetch = await fetchCloudData("treatment_db");
+            if (testFetch !== null) {
+                treatmentDb = testFetch;
+                localStorage.setItem("treatment_db", JSON.stringify(treatmentDb));
+                
+                const cloudPlans = await fetchCloudData("saved_plans");
+                if (cloudPlans !== null) {
+                    localStorage.setItem("saved_plans", JSON.stringify(cloudPlans));
+                }
+                
+                const cloudSettings = await fetchCloudData("operation_settings");
+                if (cloudSettings !== null) {
+                    const oldUrl = settings.firebaseUrl;
+                    settings = { ...DEFAULT_SETTINGS, ...cloudSettings, firebaseUrl: oldUrl };
+                    localStorage.setItem("operation_settings", JSON.stringify(settings));
+                }
+
+                updateCloudStatusUI("connected");
+                renderDatabaseTable();
+                renderJobsTable();
+                loadSettingsIntoForm();
+                calculateAll();
+                showToast("เชื่อมต่อ Cloud และดาวน์โหลดข้อมูลเสร็จสิ้น", "success");
+            } else {
+                showToast("ไม่พบข้อมูลบนคลาวด์ กำลังอัปโหลดข้อมูลเริ่มต้น...", "success");
+                
+                const successDb = await saveCloudData("treatment_db", treatmentDb);
+                const savedPlans = JSON.parse(localStorage.getItem("saved_plans")) || [];
+                const successPlans = await saveCloudData("saved_plans", savedPlans);
+                const successSettings = await saveCloudData("operation_settings", settings);
+
+                if (successDb && successSettings && successPlans) {
+                    updateCloudStatusUI("connected");
+                    showToast("อัปโหลดข้อมูลเครื่องนี้ขึ้นคลาวด์และเปิดซิงค์สำเร็จ", "success");
+                } else {
+                    updateCloudStatusUI("error");
+                    showToast("ไม่สามารถเข้าถึงฐานข้อมูล Firebase ได้ กรุณาตรวจสอบกฎความปลอดภัย", "error");
+                }
+            }
+        });
+    }
+
+    // Cloud Database Clear Sync
+    const btnClearCloud = document.getElementById("btn-clear-cloud");
+    if (btnClearCloud) {
+        btnClearCloud.addEventListener("click", () => {
+            if (confirm("ต้องการยกเลิกการเชื่อมต่อกับคลาวด์และสลับกลับมาใช้ฐานข้อมูลในเครื่องนี้ใช่หรือไม่? (ข้อมูลจะเก็บแยกกัน)")) {
+                settings.firebaseUrl = "";
+                saveSettingsToStorage();
+                updateCloudStatusUI("local");
+                document.getElementById("setting-firebase-url").value = "";
+                showToast("ยกเลิกการซิงค์ Cloud เรียบร้อยแล้ว", "success");
+            }
+        });
     }
 }
 
@@ -1255,6 +1372,10 @@ function deletePlanFromHistory(planId) {
     savedPlans = savedPlans.filter(p => p.id !== planId);
     localStorage.setItem("saved_plans", JSON.stringify(savedPlans));
     
+    if (settings.firebaseUrl) {
+        saveCloudData("saved_plans", savedPlans);
+    }
+
     // If the plan being deleted is currently previewed, exit preview mode
     if (isPreviewMode && previewPlanId === planId) {
         exitPreviewMode();
@@ -1342,4 +1463,69 @@ function exitPreviewMode() {
     calculateAll();
     
     showToast("กลับสู่แผนงานปัจจุบันเรียบร้อยแล้ว", "success");
+}
+
+// ==========================================
+// 10. CLOUD DATABASE SYNC SERVICES
+// ==========================================
+
+function updateCloudStatusUI(status) {
+    const statusEl = document.getElementById("cloud-connection-status");
+    const inputUrl = document.getElementById("setting-firebase-url");
+    if (!statusEl) return;
+    
+    if (inputUrl && settings.firebaseUrl) {
+        inputUrl.value = settings.firebaseUrl;
+    }
+
+    if (status === "connecting") {
+        statusEl.className = "text-orange";
+        statusEl.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> กำลังตรวจสอบการเชื่อมต่อ Cloud...`;
+    } else if (status === "connected") {
+        statusEl.className = "text-green";
+        statusEl.innerHTML = `<i class="fa-solid fa-circle-check"></i> เชื่อมต่อ Cloud สำเร็จ (ข้อมูลแชร์ร่วมกันแล้ว)`;
+    } else if (status === "error") {
+        statusEl.className = "text-danger";
+        statusEl.innerHTML = `<i class="fa-solid fa-circle-exclamation"></i> เชื่อมต่อขัดข้อง (ใช้ข้อมูล Local ในเครื่องชั่วคราว)`;
+    } else {
+        statusEl.className = "text-muted";
+        statusEl.innerHTML = `<i class="fa-solid fa-circle-info"></i> กำลังใช้ฐานข้อมูลภายในเครื่อง (Local Storage)`;
+    }
+}
+
+async function fetchCloudData(endpoint) {
+    if (!settings.firebaseUrl) return null;
+    try {
+        let baseUrl = settings.firebaseUrl.trim();
+        if (baseUrl.endsWith("/")) baseUrl = baseUrl.slice(0, -1);
+        
+        const url = `${baseUrl}/${endpoint}.json`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("Firebase fetch failed");
+        return await res.json();
+    } catch (e) {
+        console.error(`Error reading ${endpoint} from Cloud:`, e);
+        return null;
+    }
+}
+
+async function saveCloudData(endpoint, data) {
+    if (!settings.firebaseUrl) return false;
+    try {
+        let baseUrl = settings.firebaseUrl.trim();
+        if (baseUrl.endsWith("/")) baseUrl = baseUrl.slice(0, -1);
+        
+        const url = `${baseUrl}/${endpoint}.json`;
+        const res = await fetch(url, {
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(data)
+        });
+        return res.ok;
+    } catch (e) {
+        console.error(`Error saving ${endpoint} to Cloud:`, e);
+        return false;
+    }
 }

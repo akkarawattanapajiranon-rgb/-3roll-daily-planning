@@ -1097,3 +1097,18 @@ h1, h2, h3, h4, h5, h6 {
     display: none !important;
 }
 
+/* Settings Split Grid */
+.settings-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 24px;
+    align-items: start;
+}
+
+@media (min-width: 1024px) {
+    .settings-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+
