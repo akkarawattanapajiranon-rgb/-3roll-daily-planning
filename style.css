@@ -1,38 +1,38 @@
 /* 3-Roll Daily Planner Premium CSS Styling */
 
 :root {
-    /* Color Palette - HSL Slate/Space & Neon Highlights */
-    --bg-base: #090e1a;
-    --bg-sidebar: #0f172a;
-    --bg-surface: rgba(22, 32, 59, 0.65);
-    --bg-surface-solid: #16203b;
-    --border-color: rgba(255, 255, 255, 0.08);
-    --border-color-glow: rgba(59, 130, 246, 0.25);
+    /* Color Palette - Premium Slate Light Theme */
+    --bg-base: #f1f5f9; /* Slate-100 */
+    --bg-sidebar: #ffffff; /* Solid White Sidebar */
+    --bg-surface: rgba(255, 255, 255, 0.75); /* Translucent White Card */
+    --bg-surface-solid: #ffffff; /* Solid White Card */
+    --border-color: rgba(15, 23, 42, 0.08); /* Light grey borders */
+    --border-color-glow: rgba(59, 130, 246, 0.15);
     
-    --color-primary: #3b82f6;
-    --color-primary-hover: #2563eb;
-    --color-primary-glow: rgba(59, 130, 246, 0.4);
+    --color-primary: #2563eb; /* Royal blue */
+    --color-primary-hover: #1d4ed8;
+    --color-primary-glow: rgba(37, 99, 235, 0.15);
     
-    --color-orange: #f97316;
-    --color-orange-glow: rgba(249, 115, 22, 0.3);
+    --color-orange: #ea580c;
+    --color-orange-glow: rgba(234, 88, 12, 0.15);
     
-    --color-green: #10b981;
-    --color-green-glow: rgba(16, 185, 129, 0.3);
+    --color-green: #16a34a;
+    --color-green-glow: rgba(22, 163, 74, 0.15);
     
-    --color-danger: #ef4444;
-    --color-danger-hover: #dc2626;
-    --color-danger-glow: rgba(239, 68, 68, 0.3);
+    --color-danger: #dc2626;
+    --color-danger-hover: #b91c1c;
+    --color-danger-glow: rgba(220, 38, 38, 0.15);
     
-    --text-primary: #f8fafc;
-    --text-secondary: #94a3b8;
-    --text-muted: #64748b;
+    --text-primary: #0f172a; /* Slate-900 */
+    --text-secondary: #475569; /* Slate-600 */
+    --text-muted: #64748b; /* Slate-500 */
     
     --font-display: 'Outfit', 'Sarabun', sans-serif;
     --font-body: 'Inter', 'Sarabun', sans-serif;
     
-    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.2);
-    --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.3);
-    --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.4);
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 16px rgba(15, 23, 42, 0.05);
+    --shadow-lg: 0 10px 30px rgba(15, 23, 42, 0.08);
     
     --border-radius-sm: 6px;
     --border-radius-md: 12px;
@@ -40,6 +40,13 @@
     
     --transition-fast: 0.15s ease;
     --transition-normal: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* Inputs, Tables, Hover and Modals */
+    --bg-modal: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(248, 250, 252, 0.95));
+    --bg-input: rgba(255, 255, 255, 0.9);
+    --bg-input-table: rgba(255, 255, 255, 0.95);
+    --bg-input-disabled: #f1f5f9;
+    --bg-hover: rgba(15, 23, 42, 0.04);
 }
 
 /* Base resets & styles */
@@ -126,7 +133,7 @@ h1, h2, h3, h4, h5, h6 {
     font-size: 20px;
     font-weight: 800;
     letter-spacing: -0.5px;
-    background: linear-gradient(to right, #ffffff, #94a3b8);
+    background: linear-gradient(to right, var(--text-primary), var(--text-secondary));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     line-height: 1.2;
@@ -173,19 +180,18 @@ h1, h2, h3, h4, h5, h6 {
 
 .nav-btn:hover {
     color: var(--text-primary);
-    background-color: rgba(255, 255, 255, 0.04);
+    background-color: var(--bg-hover);
 }
 
 .nav-btn.active {
-    color: white;
-    background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(59, 130, 246, 0.05));
+    color: var(--color-primary);
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.08), rgba(59, 130, 246, 0.03));
     border-left: 3px solid var(--color-primary);
-    box-shadow: inset 0 0 10px rgba(59, 130, 246, 0.05);
+    box-shadow: inset 0 0 10px rgba(59, 130, 246, 0.03);
 }
 
 .nav-btn.active i {
     color: var(--color-primary);
-    text-shadow: 0 0 10px var(--color-primary-glow);
 }
 
 .sidebar-footer {
@@ -356,7 +362,7 @@ h1, h2, h3, h4, h5, h6 {
 .card-icon {
     font-size: 20px;
     padding: 10px;
-    background-color: rgba(255, 255, 255, 0.03);
+    background-color: var(--border-color);
     border-radius: var(--border-radius-md);
 }
 
@@ -378,7 +384,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .kpi-card {
-    background: linear-gradient(135deg, rgba(22, 32, 59, 0.8), rgba(15, 23, 42, 0.8));
+    background: var(--bg-surface-solid);
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius-lg);
     padding: 24px;
@@ -462,7 +468,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .circle-bg {
     fill: none;
-    stroke: rgba(255, 255, 255, 0.05);
+    stroke: var(--border-color);
     stroke-width: 3.8;
 }
 
@@ -514,7 +520,7 @@ h1, h2, h3, h4, h5, h6 {
     color: var(--text-secondary);
     padding: 12px 16px;
     border-bottom: 1px solid var(--border-color);
-    background-color: rgba(255, 255, 255, 0.01);
+    background-color: transparent;
 }
 
 .table td {
@@ -529,12 +535,12 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .table tbody tr:hover {
-    background-color: rgba(255, 255, 255, 0.02);
+    background-color: var(--bg-hover);
 }
 
 /* Inputs within table */
 .select-input, .number-input {
-    background-color: rgba(15, 23, 42, 0.5);
+    background-color: var(--bg-input-table);
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius-sm);
     color: var(--text-primary);
@@ -615,7 +621,7 @@ h1, h2, h3, h4, h5, h6 {
     display: flex;
     width: 100%;
     height: 32px;
-    background-color: rgba(255, 255, 255, 0.03);
+    background-color: var(--border-color);
     border-radius: var(--border-radius-sm);
     overflow: hidden;
     border: 1px solid var(--border-color);
@@ -665,7 +671,7 @@ h1, h2, h3, h4, h5, h6 {
     align-items: center;
     font-size: 13px;
     padding: 6px 0;
-    border-bottom: 1px dashed rgba(255, 255, 255, 0.05);
+    border-bottom: 1px dashed var(--border-color);
 }
 
 .legend-info {
@@ -689,7 +695,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .status-summary-box {
-    background-color: rgba(15, 23, 42, 0.4);
+    background-color: var(--bg-input-disabled);
     border-radius: var(--border-radius-md);
     padding: 16px;
     border: 1px solid var(--border-color);
@@ -785,7 +791,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .input-icon-group input, .form-group input, .form-group textarea {
     width: 100%;
-    background-color: rgba(15, 23, 42, 0.5);
+    background-color: var(--bg-input);
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius-md);
     color: var(--text-primary);
@@ -841,7 +847,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .modal {
     background-color: var(--bg-surface-solid);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--border-color);
     border-radius: var(--border-radius-lg);
     width: 500px;
     max-width: 90%;
@@ -1025,7 +1031,7 @@ h1, h2, h3, h4, h5, h6 {
     display: inline-flex;
     align-items: center;
     padding: 3px 8px;
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--bg-input-disabled);
     border: 1px solid var(--border-color);
     border-radius: 4px;
     font-size: 12px;
@@ -1154,16 +1160,16 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Disabled Form Controls styling for Planner Preview Mode */
 .select-input:disabled, .number-input:disabled {
-    background-color: rgba(15, 23, 42, 0.8) !important;
-    border-color: rgba(255, 255, 255, 0.04) !important;
+    background-color: var(--bg-input-disabled) !important;
+    border-color: var(--border-color) !important;
     color: var(--text-secondary) !important;
     cursor: not-allowed;
     opacity: 0.7;
 }
 
 .input-readonly {
-    background-color: rgba(15, 23, 42, 0.8) !important;
-    border-color: rgba(255, 255, 255, 0.04) !important;
+    background-color: var(--bg-input-disabled) !important;
+    border-color: var(--border-color) !important;
     color: var(--text-secondary) !important;
     cursor: not-allowed;
     opacity: 0.8;
@@ -1189,7 +1195,7 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Date Input Inline style */
 .date-input-inline {
-    background-color: rgba(15, 23, 42, 0.5);
+    background-color: var(--bg-input-table);
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius-sm);
     color: var(--text-primary);
@@ -1206,8 +1212,8 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .date-input-inline:disabled {
-    background-color: rgba(15, 23, 42, 0.8) !important;
-    border-color: rgba(255, 255, 255, 0.04) !important;
+    background-color: var(--bg-input-disabled) !important;
+    border-color: var(--border-color) !important;
     color: var(--text-secondary) !important;
     cursor: not-allowed;
     opacity: 0.7;
