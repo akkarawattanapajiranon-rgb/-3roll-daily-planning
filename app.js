@@ -99,6 +99,8 @@ let originalJobsBackup = null;
 let originalSettingsBackup = null;
 let isPreviewMode = false;
 let previewPlanId = null;
+let isEditingSavedPlan = false;
+let editingPlanId = null;
 
 // Save helper functions
 function saveDbToStorage() {
@@ -914,6 +916,11 @@ function setupEventListeners() {
             currentJobs = DEFAULT_JOBS;
             settings = DEFAULT_SETTINGS;
             
+            exitEditMode(true);
+            if (isPreviewMode) {
+                exitPreviewMode();
+            }
+            
             saveDbToStorage();
             saveJobsToStorage();
             saveSettingsToStorage();
@@ -1012,22 +1019,68 @@ function setupEventListeners() {
             return;
         }
 
-        const savedPlans = JSON.parse(localStorage.getItem("saved_plans")) || [];
+        let savedPlans = JSON.parse(localStorage.getItem("saved_plans")) || [];
         
-        const newPlan = {
-            id: "plan_" + Date.now(),
-            date: dateVal,
-            note: noteVal,
-            jobs: JSON.parse(JSON.stringify(currentJobs)),
-            settings: JSON.parse(JSON.stringify(settings)),
-            timestamp: Date.now()
-        };
-
-        savedPlans.push(newPlan);
-        localStorage.setItem("saved_plans", JSON.stringify(savedPlans));
+        if (isEditingSavedPlan && editingPlanId) {
+            const saveMode = document.querySelector('input[name="save-mode"]:checked')?.value || "overwrite";
+            
+            if (saveMode === "overwrite") {
+                const index = savedPlans.findIndex(p => p.id === editingPlanId);
+                if (index !== -1) {
+                    savedPlans[index] = {
+                        ...savedPlans[index],
+                        date: dateVal,
+                        note: noteVal,
+                        jobs: JSON.parse(JSON.stringify(currentJobs)),
+                        settings: JSON.parse(JSON.stringify(settings)),
+                        timestamp: Date.now()
+                    };
+                    localStorage.setItem("saved_plans", JSON.stringify(savedPlans));
+                    showToast("บันทึกแก้ไขทับรายการเดิมเรียบร้อยแล้ว", "success");
+                    exitEditMode(true); // Exit Edit Mode silently
+                } else {
+                    const newPlan = {
+                        id: "plan_" + Date.now(),
+                        date: dateVal,
+                        note: noteVal,
+                        jobs: JSON.parse(JSON.stringify(currentJobs)),
+                        settings: JSON.parse(JSON.stringify(settings)),
+                        timestamp: Date.now()
+                    };
+                    savedPlans.push(newPlan);
+                    localStorage.setItem("saved_plans", JSON.stringify(savedPlans));
+                    showToast("ไม่พบรายการเดิม จึงบันทึกเป็นรายการใหม่เรียบร้อยแล้ว", "success");
+                    exitEditMode(true);
+                }
+            } else {
+                const newPlan = {
+                    id: "plan_" + Date.now(),
+                    date: dateVal,
+                    note: noteVal,
+                    jobs: JSON.parse(JSON.stringify(currentJobs)),
+                    settings: JSON.parse(JSON.stringify(settings)),
+                    timestamp: Date.now()
+                };
+                savedPlans.push(newPlan);
+                localStorage.setItem("saved_plans", JSON.stringify(savedPlans));
+                showToast("บันทึกเป็นรายการใหม่เรียบร้อยแล้ว", "success");
+                exitEditMode(true);
+            }
+        } else {
+            const newPlan = {
+                id: "plan_" + Date.now(),
+                date: dateVal,
+                note: noteVal,
+                jobs: JSON.parse(JSON.stringify(currentJobs)),
+                settings: JSON.parse(JSON.stringify(settings)),
+                timestamp: Date.now()
+            };
+            savedPlans.push(newPlan);
+            localStorage.setItem("saved_plans", JSON.stringify(savedPlans));
+            showToast("บันทึกแผนงานประจำวันเรียบร้อยแล้ว", "success");
+        }
         
         closeSavePlanModal();
-        showToast("บันทึกแผนงานประจำวันเรียบร้อยแล้ว", "success");
         
         const historyTab = document.getElementById("tab-history");
         if (historyTab && historyTab.classList.contains("active")) {
@@ -1043,6 +1096,12 @@ function setupEventListeners() {
     const exitPreviewBtn = document.getElementById("btn-exit-preview");
     if (exitPreviewBtn) {
         exitPreviewBtn.addEventListener("click", exitPreviewMode);
+    }
+
+    // Exit Edit Mode Event Listener
+    const exitEditBtn = document.getElementById("btn-exit-edit");
+    if (exitEditBtn) {
+        exitEditBtn.addEventListener("click", () => exitEditMode());
     }
 
     // Cloud Database Save Sync
@@ -1213,12 +1272,29 @@ function openSavePlanModal() {
         return;
     }
     
-    document.getElementById("save-plan-note").value = "";
-    
-    const now = new Date();
-    const offset = now.getTimezoneOffset();
-    const localDate = new Date(now.getTime() - (offset * 60 * 1000));
-    document.getElementById("save-plan-date").value = localDate.toISOString().split("T")[0];
+    const selectionGroup = document.getElementById("save-mode-selection-group");
+    if (isEditingSavedPlan && editingPlanId) {
+        const savedPlans = JSON.parse(localStorage.getItem("saved_plans")) || [];
+        const plan = savedPlans.find(p => p.id === editingPlanId);
+        if (plan) {
+            document.getElementById("save-plan-date").value = plan.date;
+            document.getElementById("save-plan-note").value = plan.note || "";
+        }
+        if (selectionGroup) {
+            selectionGroup.style.display = "block";
+            const overwriteRadio = document.querySelector('input[name="save-mode"][value="overwrite"]');
+            if (overwriteRadio) overwriteRadio.checked = true;
+        }
+    } else {
+        document.getElementById("save-plan-note").value = "";
+        const now = new Date();
+        const offset = now.getTimezoneOffset();
+        const localDate = new Date(now.getTime() - (offset * 60 * 1000));
+        document.getElementById("save-plan-date").value = localDate.toISOString().split("T")[0];
+        if (selectionGroup) {
+            selectionGroup.style.display = "none";
+        }
+    }
 
     const totalRolls = currentJobs.reduce((sum, j) => sum + j.rolls, 0);
     let totalRunMinutes = 0;
@@ -1356,10 +1432,17 @@ function loadPlanFromHistory(planId) {
         return;
     }
 
+    if (isPreviewMode) {
+        exitPreviewMode();
+    }
+
     currentJobs = JSON.parse(JSON.stringify(plan.jobs));
     if (plan.settings) {
         settings = JSON.parse(JSON.stringify(plan.settings));
     }
+
+    isEditingSavedPlan = true;
+    editingPlanId = planId;
 
     saveJobsToStorage();
     saveSettingsToStorage();
@@ -1368,7 +1451,28 @@ function loadPlanFromHistory(planId) {
     renderJobsTable();
     calculateAll();
 
-    showToast("โหลดแผนงานประวัติย้อนหลังเรียบร้อยแล้ว", "success");
+    // Update banner UI
+    const banner = document.getElementById("edit-mode-banner");
+    const dateEl = document.getElementById("edit-banner-date");
+    const noteEl = document.getElementById("edit-banner-note");
+    const noteWrap = document.getElementById("edit-banner-note-wrap");
+
+    if (banner) {
+        const dateObj = new Date(plan.date);
+        const thaiDate = dateObj.toLocaleDateString("th-TH", { year: "numeric", month: "short", day: "numeric" });
+        dateEl.textContent = thaiDate;
+        
+        if (plan.note) {
+            noteEl.textContent = plan.note;
+            noteWrap.style.display = "inline";
+        } else {
+            noteWrap.style.display = "none";
+        }
+        
+        banner.style.display = "flex";
+    }
+
+    showToast("โหลดแผนงานประวัติย้อนหลังเข้าสู่โหมดแก้ไขเรียบร้อยแล้ว", "success");
 
     const plannerBtn = document.querySelector('.nav-btn[data-tab="planner"]');
     if (plannerBtn) {
@@ -1416,12 +1520,29 @@ function deletePlanFromHistory(planId) {
     showToast("ลบประวัติแผนงานเรียบร้อยแล้ว", "success");
 }
 
+function exitEditMode(silent = false) {
+    isEditingSavedPlan = false;
+    editingPlanId = null;
+
+    const banner = document.getElementById("edit-mode-banner");
+    if (banner) {
+        banner.style.display = "none";
+    }
+    if (!silent) {
+        showToast("ออกจากโหมดแก้ไขเรียบร้อยแล้ว", "success");
+    }
+}
+
 function enterPreviewMode(planId) {
     const savedPlans = JSON.parse(localStorage.getItem("saved_plans")) || [];
     const plan = savedPlans.find(p => p.id === planId);
     if (!plan) {
         showToast("ไม่พบข้อมูลแผนงาน", "error");
         return;
+    }
+
+    if (isEditingSavedPlan) {
+        exitEditMode(true);
     }
 
     // Save active state if not already in preview mode
