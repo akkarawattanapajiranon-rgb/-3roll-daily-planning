@@ -1373,8 +1373,8 @@ function renderHistoryTable() {
                 <button class="btn btn-success btn-sm btn-preview-plan" data-id="${plan.id}" title="ดูรายละเอียดบนแดชบอร์ด">
                     <i class="fa-solid fa-gauge"></i> ดูแดชบอร์ด
                 </button>
-                <button class="btn btn-primary btn-sm btn-load-plan" data-id="${plan.id}" title="โหลดแผนงานนี้เข้าสู่ระบบ">
-                    <i class="fa-solid fa-cloud-arrow-down"></i> โหลดแผน
+                <button class="btn btn-primary btn-sm btn-load-plan" data-id="${plan.id}" title="ดึงข้อมูลกลับมาเพื่อแก้ไขแผนงาน">
+                    <i class="fa-solid fa-pen-to-square"></i> แก้ไขแผน
                 </button>
                 <button class="btn btn-secondary btn-sm btn-export-history-csv" data-id="${plan.id}" title="ส่งออก CSV แผนงานนี้">
                     <i class="fa-solid fa-file-csv"></i> CSV
