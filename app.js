@@ -47,7 +47,7 @@ const DEFAULT_SETTINGS = {
     startupTime: 15,
     plannedDowntime: 0,
     codeChangeTime: 5,
-    firebaseUrl: ""
+    firebaseUrl: "https://roll-planning-default-rtdb.firebaseio.com/"
 };
 
 const DEFAULT_JOBS = [
@@ -73,11 +73,19 @@ const STARTUP_COLOR = "#06b6d4"; // Cyan
 const REMAINING_COLOR = "rgba(255, 255, 255, 0.05)"; // Transparent dark
 const CODE_CHANGE_COLOR = "#a855f7"; // Violet / Purple
 
-const SPECS_VERSION = "1.7";
+const SPECS_VERSION = "1.8";
 if (localStorage.getItem("specs_version") !== SPECS_VERSION) {
-    localStorage.setItem("treatment_db", JSON.stringify(DEFAULT_TREATMENTS));
-    localStorage.setItem("daily_jobs", JSON.stringify(DEFAULT_JOBS));
-    localStorage.setItem("operation_settings", JSON.stringify(DEFAULT_SETTINGS));
+    const oldSettings = JSON.parse(localStorage.getItem("operation_settings")) || {};
+    const mergedSettings = { ...DEFAULT_SETTINGS, ...oldSettings, firebaseUrl: DEFAULT_SETTINGS.firebaseUrl };
+    
+    localStorage.setItem("operation_settings", JSON.stringify(mergedSettings));
+    
+    if (!localStorage.getItem("treatment_db")) {
+        localStorage.setItem("treatment_db", JSON.stringify(DEFAULT_TREATMENTS));
+    }
+    if (!localStorage.getItem("daily_jobs")) {
+        localStorage.setItem("daily_jobs", JSON.stringify(DEFAULT_JOBS));
+    }
     localStorage.setItem("specs_version", SPECS_VERSION);
 }
 
