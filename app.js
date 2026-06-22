@@ -213,9 +213,32 @@ function initTabs() {
                 }
             });
 
-            // Re-render history log if switching to history tab
-            if (targetTab === "history") {
-                renderHistoryTable();
+            // Trigger background sync from Cloud when clicking tabs to get latest updates
+            if (settings.firebaseUrl) {
+                if (targetTab === "history" || targetTab === "planner" || targetTab === "database") {
+                    fetchCloudData("treatment_db").then(cloudDb => {
+                        if (cloudDb !== null) {
+                            treatmentDb = cloudDb;
+                            localStorage.setItem("treatment_db", JSON.stringify(treatmentDb));
+                            if (targetTab === "database") renderDatabaseTable();
+                            else if (targetTab === "planner") renderJobsTable();
+                        }
+                    });
+                }
+                
+                if (targetTab === "history") {
+                    fetchCloudData("saved_plans").then(cloudPlans => {
+                        if (cloudPlans !== null) {
+                            localStorage.setItem("saved_plans", JSON.stringify(cloudPlans));
+                            renderHistoryTable();
+                        }
+                    });
+                }
+            } else {
+                // If not using cloud, just render history locally
+                if (targetTab === "history") {
+                    renderHistoryTable();
+                }
             }
         });
     });
