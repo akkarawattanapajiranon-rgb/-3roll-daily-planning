@@ -148,7 +148,7 @@
                 <div class="planner-layout">
                     <!-- Left: Planner Input Table -->
                     <div class="card planner-card">
-                        <div class="card-header">
+                        <div class="card-header" style="display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;">
                             <div class="card-title-group">
                                 <i class="fa-solid fa-list-check card-icon text-blue"></i>
                                 <div>
@@ -156,9 +156,15 @@
                                     <p>ระบุรหัสวัสดุและจำนวนม้วนเพื่อเริ่มคำนวณ</p>
                                 </div>
                             </div>
-                            <button id="btn-add-job" class="btn btn-primary btn-sm">
-                                <i class="fa-solid fa-plus"></i> เพิ่มงานรัน
-                            </button>
+                            <div class="header-actions-inline" style="display: flex; align-items: center; gap: 16px;">
+                                <div class="date-selector-container" style="display: flex; align-items: center; gap: 8px;">
+                                    <label for="planner-date" style="font-size: 13px; color: var(--text-secondary); font-weight: 500;">วันที่แผนงาน:</label>
+                                    <input type="date" id="planner-date" class="date-input-inline">
+                                </div>
+                                <button id="btn-add-job" class="btn btn-primary btn-sm">
+                                    <i class="fa-solid fa-plus"></i> เพิ่มงานรัน
+                                </button>
+                            </div>
                         </div>
                         <div class="table-responsive">
                             <table class="table" id="job-table">

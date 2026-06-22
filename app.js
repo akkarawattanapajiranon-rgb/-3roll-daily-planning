@@ -176,6 +176,17 @@ async function initializeSystem() {
     renderJobsTable();
     setupEventListeners();
     backfillHistoryPlans();
+
+    // Initialize date selector on the main Planner tab to today
+    const now = new Date();
+    const offset = now.getTimezoneOffset();
+    const localDate = new Date(now.getTime() - (offset * 60 * 1000));
+    const todayStr = localDate.toISOString().split("T")[0];
+    const plannerDateInput = document.getElementById("planner-date");
+    if (plannerDateInput) {
+        plannerDateInput.value = todayStr;
+    }
+
     calculateAll();
 }
 
@@ -589,6 +600,12 @@ function renderJobsTable() {
     if (addJobBtn) {
         addJobBtn.disabled = isPreviewMode;
         addJobBtn.style.display = isPreviewMode ? "none" : "inline-flex";
+    }
+
+    // Disable/enable main tab date selector based on preview mode
+    const plannerDateInput = document.getElementById("planner-date");
+    if (plannerDateInput) {
+        plannerDateInput.disabled = isPreviewMode;
     }
     
     // Show/hide save plan button in header based on preview mode
@@ -1089,6 +1106,15 @@ function setupEventListeners() {
         renderJobsTable();
         calculateAll();
         
+        // Reset main date selector to today
+        const plannerDateInput = document.getElementById("planner-date");
+        if (plannerDateInput) {
+            const now = new Date();
+            const offset = now.getTimezoneOffset();
+            const localDate = new Date(now.getTime() - (offset * 60 * 1000));
+            plannerDateInput.value = localDate.toISOString().split("T")[0];
+        }
+        
         const historyTab = document.getElementById("tab-history");
         if (historyTab && historyTab.classList.contains("active")) {
             renderHistoryTable();
@@ -1280,22 +1306,23 @@ function openSavePlanModal() {
     }
     
     const selectionGroup = document.getElementById("save-mode-selection-group");
+    const plannerDateInput = document.getElementById("planner-date");
+    if (plannerDateInput && plannerDateInput.value) {
+        document.getElementById("save-plan-date").value = plannerDateInput.value;
+    } else {
+        const now = new Date();
+        const offset = now.getTimezoneOffset();
+        const localDate = new Date(now.getTime() - (offset * 60 * 1000));
+        document.getElementById("save-plan-date").value = localDate.toISOString().split("T")[0];
+    }
+
     if (isEditingSavedPlan && editingPlanId) {
-        const savedPlans = JSON.parse(localStorage.getItem("saved_plans")) || [];
-        const plan = savedPlans.find(p => p.id === editingPlanId);
-        if (plan) {
-            document.getElementById("save-plan-date").value = plan.date;
-        }
         if (selectionGroup) {
             selectionGroup.style.display = "block";
             const overwriteRadio = document.querySelector('input[name="save-mode"][value="overwrite"]');
             if (overwriteRadio) overwriteRadio.checked = true;
         }
     } else {
-        const now = new Date();
-        const offset = now.getTimezoneOffset();
-        const localDate = new Date(now.getTime() - (offset * 60 * 1000));
-        document.getElementById("save-plan-date").value = localDate.toISOString().split("T")[0];
         if (selectionGroup) {
             selectionGroup.style.display = "none";
         }
@@ -1459,6 +1486,12 @@ function loadPlanFromHistory(planId) {
     renderJobsTable();
     calculateAll();
 
+    // Set date selector in main tab
+    const plannerDateInput = document.getElementById("planner-date");
+    if (plannerDateInput) {
+        plannerDateInput.value = plan.date;
+    }
+
     // Update banner UI
     const banner = document.getElementById("edit-mode-banner");
     const dateEl = document.getElementById("edit-banner-date");
@@ -1536,6 +1569,16 @@ function exitEditMode(silent = false) {
     if (banner) {
         banner.style.display = "none";
     }
+    
+    // Reset main date selector to today
+    const plannerDateInput = document.getElementById("planner-date");
+    if (plannerDateInput) {
+        const now = new Date();
+        const offset = now.getTimezoneOffset();
+        const localDate = new Date(now.getTime() - (offset * 60 * 1000));
+        plannerDateInput.value = localDate.toISOString().split("T")[0];
+    }
+
     if (!silent) {
         showToast("ออกจากโหมดแก้ไขเรียบร้อยแล้ว", "success");
     }
@@ -1565,6 +1608,13 @@ function enterPreviewMode(planId) {
     
     isPreviewMode = true;
     previewPlanId = planId;
+
+    // Set date selector in main tab and disable it
+    const plannerDateInput = document.getElementById("planner-date");
+    if (plannerDateInput) {
+        plannerDateInput.value = plan.date;
+        plannerDateInput.disabled = true;
+    }
 
     // Display banner and set text
     const banner = document.getElementById("preview-mode-banner");
@@ -1616,6 +1666,16 @@ function exitPreviewMode() {
     const banner = document.getElementById("preview-mode-banner");
     if (banner) {
         banner.style.display = "none";
+    }
+
+    // Enable date selector and reset it to today
+    const plannerDateInput = document.getElementById("planner-date");
+    if (plannerDateInput) {
+        plannerDateInput.disabled = false;
+        const now = new Date();
+        const offset = now.getTimezoneOffset();
+        const localDate = new Date(now.getTime() - (offset * 60 * 1000));
+        plannerDateInput.value = localDate.toISOString().split("T")[0];
     }
 
     // Recalculate and re-render Planner
