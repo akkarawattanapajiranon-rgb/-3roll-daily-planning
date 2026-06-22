@@ -175,6 +175,7 @@ async function initializeSystem() {
     renderDatabaseTable();
     renderJobsTable();
     setupEventListeners();
+    backfillHistoryPlans();
     calculateAll();
 }
 
@@ -1686,5 +1687,55 @@ async function saveCloudData(endpoint, data) {
     } catch (e) {
         console.error(`Error saving ${endpoint} to Cloud:`, e);
         return false;
+    }
+}
+
+// Backfill migration helper for old plan records
+function getPlanTotalTime(plan) {
+    const jobs = plan.jobs || [];
+    const planSettings = plan.settings || settings;
+    const totalRolls = jobs.reduce((sum, j) => sum + j.rolls, 0);
+    let totalRunMinutes = 0;
+    let codeChangeCount = 0;
+    const singleCodeChangeTime = planSettings.codeChangeTime !== undefined ? planSettings.codeChangeTime : 5;
+    
+    jobs.forEach((job, index) => {
+        const spec = treatmentDb.find(t => t.code === job.code);
+        if (!spec) return;
+        const calcs = getTreatmentCalculations(spec);
+        totalRunMinutes += calcs.totalTimePerRoll * job.rolls;
+        if (index < jobs.length - 1) {
+            const nextJob = jobs[index + 1];
+            if (nextJob.code !== job.code) {
+                codeChangeCount++;
+            }
+        }
+    });
+    
+    const totalCodeChangeTime = codeChangeCount * singleCodeChangeTime;
+    const startupTime = planSettings.startupTime !== undefined ? planSettings.startupTime : 15;
+    const plannedDowntime = planSettings.plannedDowntime !== undefined ? planSettings.plannedDowntime : 0;
+    return startupTime + totalRunMinutes + plannedDowntime + totalCodeChangeTime;
+}
+
+function backfillHistoryPlans() {
+    let savedPlans = JSON.parse(localStorage.getItem("saved_plans")) || [];
+    let modified = false;
+    
+    savedPlans.forEach(plan => {
+        const totalMinutes = getPlanTotalTime(plan);
+        const timeStr = formatMinutes(totalMinutes);
+        
+        if (plan.note !== timeStr) {
+            plan.note = timeStr;
+            modified = true;
+        }
+    });
+    
+    if (modified) {
+        localStorage.setItem("saved_plans", JSON.stringify(savedPlans));
+        if (settings.firebaseUrl) {
+            saveCloudData("saved_plans", savedPlans);
+        }
     }
 }
