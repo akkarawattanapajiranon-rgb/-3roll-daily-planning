@@ -653,7 +653,7 @@ function renderJobsTable() {
             <td><span class="job-speed text-muted">${spec ? spec.speed : "-"} MPM</span></td>
             <td><span class="job-time-per-roll text-bold">${calcs.totalTimePerRoll} นาที</span></td>
             <td>
-                <input type="number" class="number-input job-rolls-input" min="1" step="1" value="${job.rolls}" ${disabledAttr}>
+                <input type="number" class="number-input job-rolls-input" min="0.1" step="any" value="${job.rolls}" ${disabledAttr}>
             </td>
             <td><span class="job-total-time text-highlight">${formatMinutes(rowTotalMinutes)}</span></td>
             <td style="text-align: center;">
@@ -701,8 +701,8 @@ function attachRowEventListeners() {
 
         // Rolls input change
         rollsInput.addEventListener("input", (e) => {
-            let val = parseInt(e.target.value);
-            if (isNaN(val) || val < 1) val = 1;
+            let val = parseFloat(e.target.value);
+            if (isNaN(val) || val < 0) val = 0;
             
             currentJobs[index].rolls = val;
             saveJobsToStorage();
@@ -712,6 +712,23 @@ function attachRowEventListeners() {
             
             updateRowTotalTime(tr, calcs.totalTimePerRoll, val);
             calculateAll();
+        });
+
+        // Restore to default on blur if empty or invalid
+        rollsInput.addEventListener("blur", (e) => {
+            let val = parseFloat(e.target.value);
+            if (isNaN(val) || val <= 0) {
+                val = 1;
+                e.target.value = val;
+                currentJobs[index].rolls = val;
+                saveJobsToStorage();
+                
+                const spec = treatmentDb.find(t => t.code === currentJobs[index].code);
+                const calcs = getTreatmentCalculations(spec);
+                
+                updateRowTotalTime(tr, calcs.totalTimePerRoll, val);
+                calculateAll();
+            }
         });
 
         // Delete Row
