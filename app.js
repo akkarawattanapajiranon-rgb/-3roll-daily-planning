@@ -47,7 +47,9 @@ const DEFAULT_SETTINGS = {
     startupTime: 15,
     plannedDowntime: 0,
     codeChangeTime: 5,
-    firebaseUrl: "https://roll-planning-default-rtdb.firebaseio.com/"
+    firebaseUrl: "https://roll-planning-default-rtdb.firebaseio.com/",
+    teamsEnabled: false,
+    teamsWebhookUrl: ""
 };
 
 const DEFAULT_JOBS = [
@@ -880,6 +882,11 @@ function loadSettingsIntoForm() {
     document.getElementById("setting-startup-time").value = settings.startupTime !== undefined ? settings.startupTime : 15;
     document.getElementById("setting-planned-downtime").value = settings.plannedDowntime !== undefined ? settings.plannedDowntime : 0;
     document.getElementById("setting-code-change-time").value = settings.codeChangeTime || 5;
+
+    const teamsEnableElem = document.getElementById("setting-teams-enable");
+    const teamsUrlElem = document.getElementById("setting-teams-webhook-url");
+    if (teamsEnableElem) teamsEnableElem.checked = !!settings.teamsEnabled;
+    if (teamsUrlElem) teamsUrlElem.value = settings.teamsWebhookUrl || "";
 }
 
 // ==========================================
@@ -1055,7 +1062,8 @@ function setupEventListeners() {
         }
 
         let savedPlans = JSON.parse(localStorage.getItem("saved_plans")) || [];
-        
+        let savedPlanToNotify = null;
+
         if (isEditingSavedPlan && editingPlanId) {
             const saveMode = document.querySelector('input[name="save-mode"]:checked')?.value || "overwrite";
             
@@ -1070,6 +1078,7 @@ function setupEventListeners() {
                         settings: JSON.parse(JSON.stringify(settings)),
                         timestamp: Date.now()
                     };
+                    savedPlanToNotify = savedPlans[index];
                     localStorage.setItem("saved_plans", JSON.stringify(savedPlans));
                     showToast("บันทึกแก้ไขทับรายการเดิมเรียบร้อยแล้ว", "success");
                     exitEditMode(true); // Exit Edit Mode silently
@@ -1082,6 +1091,7 @@ function setupEventListeners() {
                         settings: JSON.parse(JSON.stringify(settings)),
                         timestamp: Date.now()
                     };
+                    savedPlanToNotify = newPlan;
                     savedPlans.push(newPlan);
                     localStorage.setItem("saved_plans", JSON.stringify(savedPlans));
                     showToast("ไม่พบรายการเดิม จึงบันทึกเป็นรายการใหม่เรียบร้อยแล้ว", "success");
@@ -1096,6 +1106,7 @@ function setupEventListeners() {
                     settings: JSON.parse(JSON.stringify(settings)),
                     timestamp: Date.now()
                 };
+                savedPlanToNotify = newPlan;
                 savedPlans.push(newPlan);
                 localStorage.setItem("saved_plans", JSON.stringify(savedPlans));
                 showToast("บันทึกเป็นรายการใหม่เรียบร้อยแล้ว", "success");
@@ -1110,6 +1121,7 @@ function setupEventListeners() {
                 settings: JSON.parse(JSON.stringify(settings)),
                 timestamp: Date.now()
             };
+            savedPlanToNotify = newPlan;
             savedPlans.push(newPlan);
             localStorage.setItem("saved_plans", JSON.stringify(savedPlans));
             showToast("บันทึกแผนงานประจำวันเรียบร้อยแล้ว", "success");
@@ -1139,6 +1151,11 @@ function setupEventListeners() {
         
         if (settings.firebaseUrl) {
             saveCloudData("saved_plans", savedPlans);
+        }
+
+        // Auto trigger Microsoft Teams Notification if enabled
+        if (savedPlanToNotify) {
+            sendTeamsNotification(savedPlanToNotify);
         }
     });
 
@@ -1228,6 +1245,115 @@ function setupEventListeners() {
                 showToast("ยกเลิกการซิงค์ Cloud เรียบร้อยแล้ว", "success");
             }
         });
+    }
+
+    // Microsoft Teams Settings Save & Test
+    const btnSaveTeams = document.getElementById("btn-save-teams");
+    if (btnSaveTeams) {
+        btnSaveTeams.addEventListener("click", () => {
+            const enabled = document.getElementById("setting-teams-enable").checked;
+            const url = document.getElementById("setting-teams-webhook-url").value.trim();
+
+            if (enabled && !url) {
+                showToast("กรุณาระบุ Webhook URL สำหรับ Microsoft Teams", "error");
+                return;
+            }
+
+            settings.teamsEnabled = enabled;
+            settings.teamsWebhookUrl = url;
+            saveSettingsToStorage();
+            showToast("บันทึกการตั้งค่า Microsoft Teams เรียบร้อยแล้ว", "success");
+        });
+    }
+
+    const btnTestTeams = document.getElementById("btn-test-teams");
+    if (btnTestTeams) {
+        btnTestTeams.addEventListener("click", () => {
+            const url = document.getElementById("setting-teams-webhook-url").value.trim();
+            if (!url) {
+                showToast("กรุณาระบุ Webhook URL ก่อนกดทดสอบ", "error");
+                return;
+            }
+
+            const testPlan = {
+                date: new Date().toISOString().split("T")[0],
+                note: "ทดสอบการเชื่อมต่อระบบ 3-Roll Daily Planning",
+                jobs: JSON.parse(JSON.stringify(currentJobs.length > 0 ? currentJobs : DEFAULT_JOBS))
+            };
+
+            const tempEnabled = settings.teamsEnabled;
+            const tempUrl = settings.teamsWebhookUrl;
+            settings.teamsEnabled = true;
+            settings.teamsWebhookUrl = url;
+
+            showToast("กำลังส่งข้อความทดสอบเข้า Microsoft Teams...", "info");
+            sendTeamsNotification(testPlan);
+
+            settings.teamsEnabled = tempEnabled;
+            settings.teamsWebhookUrl = tempUrl;
+        });
+    }
+}
+
+// Function to send Adaptive Card / MessageCard notification to Microsoft Teams Webhook
+async function sendTeamsNotification(planData) {
+    if (!settings.teamsEnabled || !settings.teamsWebhookUrl) {
+        return;
+    }
+
+    const totalRolls = planData.jobs.reduce((sum, j) => sum + j.rolls, 0);
+    let dateStr = planData.date;
+    try {
+        const [yr, mo, dy] = planData.date.split("-").map(Number);
+        const dateObj = new Date(yr, mo - 1, dy);
+        dateStr = dateObj.toLocaleDateString("th-TH", { year: "numeric", month: "long", day: "numeric", weekday: "long" });
+    } catch (e) {}
+
+    let jobListMarkdown = "";
+    planData.jobs.forEach((j, idx) => {
+        const spec = treatmentDb.find(t => t.code === j.code);
+        const calcs = getTreatmentCalculations(spec);
+        const rowTotalMinutes = calcs.totalTimePerRoll * j.rolls;
+        jobListMarkdown += `**${idx + 1}. ${j.code}** | Compound: ${spec ? (spec.compound || '-') : '-'} | **${j.rolls} ม้วน** (${formatMinutes(rowTotalMinutes)})\n\n`;
+    });
+
+    const payload = {
+        "@type": "MessageCard",
+        "@context": "http://schema.org/extensions",
+        "themeColor": "2563EB",
+        "summary": `สรุปแผนงานประจำวัน 3-Roll (${dateStr})`,
+        "sections": [{
+            "activityTitle": "📊 รายงานแผนงานประจำวัน 3-Roll Daily Planning",
+            "activitySubtitle": `ประจำวันที่: ${dateStr}`,
+            "facts": [
+                { "name": "📅 วันที่แผนงาน:", "value": dateStr },
+                { "name": "📦 จำนวนรายการ:", "value": `${planData.jobs.length} รายการ` },
+                { "name": "🌀 จำนวนม้วนรวม:", "value": `${totalRolls} ม้วน` },
+                { "name": "⏱️ เวลาที่ต้องใช้รวม:", "value": planData.note || "-" }
+            ],
+            "text": `### 📋 รายการรันงาน (Job Schedule)\n\n${jobListMarkdown}`,
+            "markdown": true
+        }]
+    };
+
+    try {
+        const response = await fetch(settings.teamsWebhookUrl, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (response.ok) {
+            showToast("ส่งการ์ดแจ้งเตือนเข้า Microsoft Teams เรียบร้อยแล้ว 🚀", "success");
+        } else {
+            console.error("Teams webhook status error:", response.status);
+            showToast("ไม่สามารถส่งแจ้งเตือนเข้า Teams ได้ (โปรดตรวจสอบ Webhook URL)", "error");
+        }
+    } catch (err) {
+        console.error("Teams webhook fetch error:", err);
+        showToast("เกิดข้อผิดพลาดในการส่งเข้า Teams: " + err.message, "error");
     }
 }
 

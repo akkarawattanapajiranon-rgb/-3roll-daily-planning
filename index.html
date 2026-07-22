@@ -392,6 +392,46 @@
                             </form>
                         </div>
                     </div>
+
+                    <!-- Microsoft Teams Notification Card -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title-group">
+                                <i class="fa-brands fa-microsoft card-icon text-blue"></i>
+                                <div>
+                                    <h3>การแจ้งเตือน Microsoft Teams อัตโนมัติ (Teams Auto Notification)</h3>
+                                    <p>ส่งการ์ดรายงานแผนงานเข้าแชนแนล Microsoft Teams อัตโนมัติทุกครั้งที่บันทึกแผนงาน</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <form id="teams-config-form" class="settings-form" onsubmit="event.preventDefault();">
+                                <div class="form-group">
+                                    <label for="setting-teams-enable" style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 6px 0;">
+                                        <input type="checkbox" id="setting-teams-enable" style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--color-primary);">
+                                        <span style="font-weight: 600; color: var(--text-primary);">เปิดใช้งานการส่งแจ้งเตือนเข้า Microsoft Teams เมื่อกดบันทึกแผนงาน</span>
+                                    </label>
+                                </div>
+                                <div class="form-group">
+                                    <label for="setting-teams-webhook-url">Microsoft Teams Webhook URL</label>
+                                    <div class="input-icon-group" style="position: relative; display: flex; align-items: center;">
+                                        <i class="fa-solid fa-link" style="position: absolute; left: 14px; color: var(--text-muted);"></i>
+                                        <input type="url" id="setting-teams-webhook-url" placeholder="https://outlook.office.com/webhook/... หรือ https://prod-xx...logic.azure.com/..." style="padding-left: 42px;">
+                                    </div>
+                                    <span class="help-text">นำ Incoming Webhook URL หรือ Workflow Webhook URL จากแชนแนล Microsoft Teams มาวางที่นี่</span>
+                                </div>
+
+                                <div class="form-action-group" style="margin-top: 20px;">
+                                    <button type="button" id="btn-save-teams" class="btn btn-primary">
+                                        <i class="fa-solid fa-floppy-disk"></i> บันทึกการตั้งค่า Teams
+                                    </button>
+                                    <button type="button" id="btn-test-teams" class="btn btn-secondary">
+                                        <i class="fa-solid fa-paper-plane"></i> ทดสอบส่งข้อความเข้า Teams
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
                 </div>
             </section>
 
