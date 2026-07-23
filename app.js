@@ -1548,18 +1548,60 @@ async function sendLineMessagingApiNotification(planData, isTest = false) {
         dateStr = dateObj.toLocaleDateString("th-TH", { year: "numeric", month: "long", day: "numeric", weekday: "long" });
     } catch(e) {}
 
+    // Calculate time breakdown (8 ชม. + OT)
+    const startupTime = (planData.settings && planData.settings.startupTime !== undefined) ? planData.settings.startupTime : (settings.startupTime || 15);
+    const plannedDowntime = (planData.settings && planData.settings.plannedDowntime !== undefined) ? planData.settings.plannedDowntime : (settings.plannedDowntime || 0);
+    const singleCodeChangeTime = (planData.settings && planData.settings.codeChangeTime !== undefined) ? planData.settings.codeChangeTime : (settings.codeChangeTime || 5);
+    
+    let totalRunMinutes = 0;
+    let codeChangeCount = 0;
+    
+    planData.jobs.forEach((job, index) => {
+        const spec = treatmentDb.find(t => t.code === job.code);
+        if (!spec) return;
+        const calcs = getTreatmentCalculations(spec);
+        totalRunMinutes += calcs.totalTimePerRoll * job.rolls;
+        if (index < planData.jobs.length - 1) {
+            const nextJob = planData.jobs[index + 1];
+            if (nextJob.code !== job.code) {
+                codeChangeCount++;
+            }
+        }
+    });
+
+    const totalCodeChangeTime = codeChangeCount * singleCodeChangeTime;
+    const totalNeededMinutes = startupTime + totalRunMinutes + plannedDowntime + totalCodeChangeTime;
+
+    const startTimeStr = (planData.settings && planData.settings.startTime) || settings.startTime || "07:00";
+    const endTimeStr = (planData.settings && planData.settings.endTime) || settings.endTime || "15:00";
+    const [startH, startM] = startTimeStr.split(":").map(Number);
+    const [endH, endM] = endTimeStr.split(":").map(Number);
+    let startMin = startH * 60 + startM;
+    let endMin = endH * 60 + endM;
+    if (endMin <= startMin) endMin += 24 * 60;
+    const regularShiftMinutes = endMin - startMin;
+    const regularShiftHoursStr = (regularShiftMinutes / 60) % 1 === 0 ? `${regularShiftMinutes / 60} ชม.` : `${(regularShiftMinutes / 60).toFixed(1)} ชม.`;
+
+    const otMinutes = Math.max(0, totalNeededMinutes - regularShiftMinutes);
+    let timeDetailStr = "";
+    if (otMinutes > 0) {
+        timeDetailStr = `${formatMinutes(totalNeededMinutes)} (${regularShiftHoursStr} + OT ${formatMinutes(otMinutes)})`;
+    } else {
+        timeDetailStr = `${formatMinutes(totalNeededMinutes)} (${regularShiftHoursStr})`;
+    }
+
     let jobListText = "";
     planData.jobs.forEach((j, idx) => {
         const spec = treatmentDb.find(t => t.code === j.code);
         const calcs = getTreatmentCalculations(spec);
-        const rowTotalMinutes = calcs.totalTimePerRoll * j.rolls;
+        const rowTotalMinutes = calcs ? (calcs.totalTimePerRoll * j.rolls) : 0;
         jobListText += `${idx + 1}. ${j.code} | ${spec ? (spec.compound || '-') : '-'} | ${j.rolls} ม้วน (${formatMinutes(rowTotalMinutes)})\n`;
     });
 
-    let msgText = `🟢 รายงานแผนงานประจำวัน 3-Roll Daily Planning\n`;
-    msgText += `📅 ประจำวันที่: ${dateStr}\n`;
-    msgText += `📦 รายการ: ${planData.jobs.length} รายการ | 🌀 ม้วนรวม: ${totalRolls} ม้วน\n`;
-    msgText += `⏱️ เวลาที่ต้องใช้รวม: ${planData.note || "-"}\n`;
+    let msgText = `🟢 รายงานแผนงานประจำวัน (3-Roll Daily Planning)\n\n`;
+    msgText += `📅 วันที่: ${dateStr}\n`;
+    msgText += `🌀 จำนวนม้วน ทั้งหมด ที่สั่ง: ${totalRolls} ม้วน\n`;
+    msgText += `⏱️ ระยะเวลาที่ใช้ ทั้งหมด: ${timeDetailStr}\n`;
     msgText += `-----------------------------------\n`;
     msgText += `📋 รายการรันงาน (Job Schedule):\n${jobListText}`;
     msgText += `-----------------------------------\n`;
@@ -1983,17 +2025,59 @@ function shareOrCopyLineSummary(planData) {
         dateStr = dateObj.toLocaleDateString("th-TH", { year: "numeric", month: "long", day: "numeric", weekday: "long" });
     } catch(e) {}
 
-    let text = `🟢 รายงานแผนงานประจำวัน 3-Roll Daily Planning\n`;
-    text += `📅 ประจำวันที่: ${dateStr}\n`;
-    text += `📦 รายการ: ${planData.jobs.length} รายการ | 🌀 ม้วนรวม: ${totalRolls} ม้วน\n`;
-    text += `⏱️ เวลาที่ต้องใช้รวม: ${planData.note || "-"}\n`;
+    // Calculate time breakdown (8 ชม. + OT)
+    const startupTime = (planData.settings && planData.settings.startupTime !== undefined) ? planData.settings.startupTime : (settings.startupTime || 15);
+    const plannedDowntime = (planData.settings && planData.settings.plannedDowntime !== undefined) ? planData.settings.plannedDowntime : (settings.plannedDowntime || 0);
+    const singleCodeChangeTime = (planData.settings && planData.settings.codeChangeTime !== undefined) ? planData.settings.codeChangeTime : (settings.codeChangeTime || 5);
+    
+    let totalRunMinutes = 0;
+    let codeChangeCount = 0;
+    
+    planData.jobs.forEach((job, index) => {
+        const spec = treatmentDb.find(t => t.code === job.code);
+        if (!spec) return;
+        const calcs = getTreatmentCalculations(spec);
+        totalRunMinutes += calcs.totalTimePerRoll * job.rolls;
+        if (index < planData.jobs.length - 1) {
+            const nextJob = planData.jobs[index + 1];
+            if (nextJob.code !== job.code) {
+                codeChangeCount++;
+            }
+        }
+    });
+
+    const totalCodeChangeTime = codeChangeCount * singleCodeChangeTime;
+    const totalNeededMinutes = startupTime + totalRunMinutes + plannedDowntime + totalCodeChangeTime;
+
+    const startTimeStr = (planData.settings && planData.settings.startTime) || settings.startTime || "07:00";
+    const endTimeStr = (planData.settings && planData.settings.endTime) || settings.endTime || "15:00";
+    const [startH, startM] = startTimeStr.split(":").map(Number);
+    const [endH, endM] = endTimeStr.split(":").map(Number);
+    let startMin = startH * 60 + startM;
+    let endMin = endH * 60 + endM;
+    if (endMin <= startMin) endMin += 24 * 60;
+    const regularShiftMinutes = endMin - startMin;
+    const regularShiftHoursStr = (regularShiftMinutes / 60) % 1 === 0 ? `${regularShiftMinutes / 60} ชม.` : `${(regularShiftMinutes / 60).toFixed(1)} ชม.`;
+
+    const otMinutes = Math.max(0, totalNeededMinutes - regularShiftMinutes);
+    let timeDetailStr = "";
+    if (otMinutes > 0) {
+        timeDetailStr = `${formatMinutes(totalNeededMinutes)} (${regularShiftHoursStr} + OT ${formatMinutes(otMinutes)})`;
+    } else {
+        timeDetailStr = `${formatMinutes(totalNeededMinutes)} (${regularShiftHoursStr})`;
+    }
+
+    let text = `🟢 รายงานแผนงานประจำวัน (3-Roll Daily Planning)\n\n`;
+    text += `📅 วันที่: ${dateStr}\n`;
+    text += `🌀 จำนวนม้วน ทั้งหมด ที่สั่ง: ${totalRolls} ม้วน\n`;
+    text += `⏱️ ระยะเวลาที่ใช้ ทั้งหมด: ${timeDetailStr}\n`;
     text += `-----------------------------------\n`;
     text += `📋 รายการรันงาน (Job Schedule):\n`;
 
     planData.jobs.forEach((j, idx) => {
         const spec = treatmentDb.find(t => t.code === j.code);
         const calcs = getTreatmentCalculations(spec);
-        const rowTotalMinutes = calcs.totalTimePerRoll * j.rolls;
+        const rowTotalMinutes = calcs ? (calcs.totalTimePerRoll * j.rolls) : 0;
         text += `${idx + 1}. ${j.code} | ${spec ? (spec.compound || '-') : '-'} | ${j.rolls} ม้วน (${formatMinutes(rowTotalMinutes)})\n`;
     });
 
