@@ -78,10 +78,16 @@ const STARTUP_COLOR = "#06b6d4"; // Cyan
 const REMAINING_COLOR = "rgba(255, 255, 255, 0.05)"; // Transparent dark
 const CODE_CHANGE_COLOR = "#a855f7"; // Violet / Purple
 
-const SPECS_VERSION = "1.8";
+const SPECS_VERSION = "2.0";
 if (localStorage.getItem("specs_version") !== SPECS_VERSION) {
     const oldSettings = JSON.parse(localStorage.getItem("operation_settings")) || {};
-    const mergedSettings = { ...DEFAULT_SETTINGS, ...oldSettings, firebaseUrl: DEFAULT_SETTINGS.firebaseUrl };
+    const mergedSettings = {
+        ...DEFAULT_SETTINGS,
+        ...oldSettings,
+        lineEnabled: true,
+        lineGroupId: "C30127ffb95629169838cc79b031de04a",
+        lineAccessToken: DEFAULT_SETTINGS.lineAccessToken
+    };
     
     localStorage.setItem("operation_settings", JSON.stringify(mergedSettings));
     
@@ -97,7 +103,7 @@ if (localStorage.getItem("specs_version") !== SPECS_VERSION) {
 // State variables loaded from LocalStorage or Defaults
 let treatmentDb = JSON.parse(localStorage.getItem("treatment_db")) || DEFAULT_TREATMENTS;
 let currentJobs = [];
-let settings = JSON.parse(localStorage.getItem("operation_settings")) || DEFAULT_SETTINGS;
+let settings = { ...DEFAULT_SETTINGS, ...(JSON.parse(localStorage.getItem("operation_settings")) || {}) };
 
 // Backup variables for Preview Mode
 let originalJobsBackup = null;
@@ -1513,7 +1519,7 @@ async function sendTeamsNotification(planData) {
 async function sendLineMessagingApiNotification(planData, isTest = false) {
     const enabled = settings.lineEnabled !== undefined ? settings.lineEnabled : true;
     const token = (settings.lineAccessToken || "lA3/unyIr+y+wbNB+rZX9Iwd7j7XcIHKVm0eSDtsTkY0jPjuvpbXy2rDOfmqwGPbwQ9bcf7AjSd08IJnJbwsg0MkEWWwp5I429vpOhndlnmrCkKScDzl1ycX3OEPoRtVdq3My317OWpYIcUmgN8eMAdB04t89/1O/w1cDnyilFU=").trim();
-    let toId = (settings.lineGroupId || "").trim();
+    let toId = (settings.lineGroupId || "C30127ffb95629169838cc79b031de04a").trim();
 
     if (!enabled || !token || !toId) {
         if (isTest) alert("กรุณากรอก LINE Group ID หรือ User ID ปลายทางก่อนกดทดสอบ");
