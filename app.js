@@ -1438,7 +1438,7 @@ function setupEventListeners() {
             settings.lineAccessToken = token;
 
             showToast("กำลังส่งข้อความทดสอบเข้ากลุ่ม LINE...", "info");
-            sendLineMessagingApiNotification(testPlan);
+            sendLineMessagingApiNotification(testPlan, true);
 
             settings.lineEnabled = tempEnabled;
             settings.lineGroupId = tempGroupId;
@@ -1510,12 +1510,27 @@ async function sendTeamsNotification(planData) {
 }
 
 // Function to send LINE Messaging API push notification to a group/user
-async function sendLineMessagingApiNotification(planData) {
+async function sendLineMessagingApiNotification(planData, isTest = false) {
     const enabled = settings.lineEnabled !== undefined ? settings.lineEnabled : true;
-    const token = settings.lineAccessToken || "lA3/unyIr+y+wbNB+rZX9Iwd7j7XcIHKVm0eSDtsTkY0jPjuvpbXy2rDOfmqwGPbwQ9bcf7AjSd08IJnJbwsg0MkEWWwp5I429vpOhndlnmrCkKScDzl1ycX3OEPoRtVdq3My317OWpYIcUmgN8eMAdB04t89/1O/w1cDnyilFU=";
-    const toId = settings.lineGroupId || "ae0e35a248c911427af16a1a671a1d7e";
+    const token = (settings.lineAccessToken || "lA3/unyIr+y+wbNB+rZX9Iwd7j7XcIHKVm0eSDtsTkY0jPjuvpbXy2rDOfmqwGPbwQ9bcf7AjSd08IJnJbwsg0MkEWWwp5I429vpOhndlnmrCkKScDzl1ycX3OEPoRtVdq3My317OWpYIcUmgN8eMAdB04t89/1O/w1cDnyilFU=").trim();
+    let toId = (settings.lineGroupId || "").trim();
 
     if (!enabled || !token || !toId) {
+        if (isTest) alert("กรุณากรอก LINE Group ID หรือ User ID ปลายทางก่อนกดทดสอบ");
+        return;
+    }
+
+    // Check if user accidentally entered Channel Secret as Group ID
+    if (toId === "ae0e35a248c911427af16a1a671a1d7e" || (!toId.startsWith("C") && !toId.startsWith("U") && !toId.startsWith("R"))) {
+        if (isTest) {
+            alert(`⚠️ รหัส "${toId}" คือ Channel Secret ครับ ไม่ใช่ Group ID!\n\n` +
+                  `📌 ระบบของ LINE ต้องการ Group ID (ขึ้นต้นด้วย C...) หรือ User ID (ขึ้นต้นด้วย U...)\n\n` +
+                  `💡 วิธีดู User ID ของคุณเพื่อทดสอบ:\n` +
+                  `1. เข้าเว็บ https://developers.line.biz/\n` +
+                  `2. เลือก Channel ของคุณ -> แท็บ Basic settings\n` +
+                  `3. เลื่อนลงล่างสุดจะเจอ "Your user ID" (ขึ้นต้นด้วย U...)\n` +
+                  `4. นำรหัส U... นั้นมาใส่ในช่อง LINE Group ID / User ID แทนครับ`);
+        }
         return;
     }
 
@@ -1554,25 +1569,56 @@ async function sendLineMessagingApiNotification(planData) {
         ]
     };
 
-    try {
-        const response = await fetch("https://api.line.me/v2/bot/message/push", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${token}`
-            },
-            body: JSON.stringify(payload)
-        });
+    const targetUrls = [
+        "https://corsproxy.io/?" + encodeURIComponent("https://api.line.me/v2/bot/message/push"),
+        "https://api.line.me/v2/bot/message/push"
+    ];
 
-        if (response.ok) {
-            showToast("ส่งการ์ดแจ้งเตือนเข้ากลุ่ม LINE เรียบร้อยแล้ว 🟢", "success");
-        } else {
-            console.warn("LINE Messaging API Push response status:", response.status);
-            showToast("เตรียมส่งเข้า LINE ผ่าน API แล้ว (โปรดตรวจสอบสิทธิ์บอทในกลุ่ม LINE)", "info");
+    let lastError = null;
+    let success = false;
+    let resJson = null;
+    let statusCode = 0;
+
+    for (const targetUrl of targetUrls) {
+        try {
+            const response = await fetch(targetUrl, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify(payload)
+            });
+
+            statusCode = response.status;
+            resJson = await response.json().catch(() => ({}));
+
+            if (response.ok) {
+                success = true;
+                break;
+            } else {
+                lastError = resJson.message || resJson.details?.[0]?.message || `HTTP ${response.status}`;
+            }
+        } catch (err) {
+            lastError = err.message;
         }
-    } catch (err) {
-        console.error("LINE Messaging API fetch error:", err);
-        showToast("เตรียมส่งเข้า LINE ผ่าน Messaging API แล้ว 🟢", "info");
+    }
+
+    if (success) {
+        showToast("ส่งแจ้งเตือนเข้ากลุ่ม LINE เรียบร้อยแล้ว! 🟢", "success");
+        if (isTest) alert("✅ ส่งข้อความทดสอบเข้ากลุ่ม LINE สำเร็จเรียบร้อยแล้ว!");
+    } else {
+        console.error("LINE Messaging API Error:", lastError, resJson);
+        showToast("ไม่สามารถส่งเข้า LINE ได้: " + (lastError || "โปรดตรวจสอบสิทธิ์บอทในกลุ่ม"), "error");
+        if (isTest) {
+            let errorDetail = `❌ เกิดข้อผิดพลาดในการส่งข้อความเข้า LINE (${statusCode || "CORS/Network"}):\n\n`;
+            errorDetail += `ข้อความจาก LINE: ${lastError || "ไม่สามารถเชื่อมต่อ LINE API ได้"}\n\n`;
+            errorDetail += `📌 สาเหตุที่เจอบ่อยที่สุด:\n`;
+            errorDetail += `1. **ยังไม่ได้เชิญบอทเข้ากลุ่ม LINE**: ต้องไปที่กลุ่ม LINE แล้วกดเชิญ (Invite) บอท LINE Official Account ของคุณเข้ามาในกลุ่มก่อน\n`;
+            errorDetail += `2. **Group ID ไม่ถูกต้อง**: Group ID มักจะขึ้นต้นด้วยตัว C (เช่น C1234567890abcdef...)\n`;
+            errorDetail += `3. **Channel Access Token ไม่ถูกต้องหรือหมดอายุ**`;
+            alert(errorDetail);
+        }
     }
 }
 
