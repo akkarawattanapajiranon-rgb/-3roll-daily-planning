@@ -1590,20 +1590,10 @@ async function sendLineMessagingApiNotification(planData, isTest = false) {
         timeDetailStr = `${formatMinutes(totalNeededMinutes)} (${regularShiftHoursStr})`;
     }
 
-    let jobListText = "";
-    planData.jobs.forEach((j, idx) => {
-        const spec = treatmentDb.find(t => t.code === j.code);
-        const calcs = getTreatmentCalculations(spec);
-        const rowTotalMinutes = calcs ? (calcs.totalTimePerRoll * j.rolls) : 0;
-        jobListText += `${idx + 1}. ${j.code} | ${spec ? (spec.compound || '-') : '-'} | ${j.rolls} ม้วน (${formatMinutes(rowTotalMinutes)})\n`;
-    });
-
     let msgText = `🟢 รายงานแผนงานประจำวัน (3-Roll Daily Planning)\n\n`;
     msgText += `📅 วันที่: ${dateStr}\n`;
     msgText += `🌀 จำนวนม้วน ทั้งหมด ที่สั่ง: ${totalRolls} ม้วน\n`;
     msgText += `⏱️ ระยะเวลาที่ใช้ ทั้งหมด: ${timeDetailStr}\n`;
-    msgText += `-----------------------------------\n`;
-    msgText += `📋 รายการรันงาน (Job Schedule):\n${jobListText}`;
     msgText += `-----------------------------------\n`;
     msgText += `⚙️ สรุปจากระบบ 3-Roll Daily Planning`;
 
@@ -2071,16 +2061,6 @@ function shareOrCopyLineSummary(planData) {
     text += `📅 วันที่: ${dateStr}\n`;
     text += `🌀 จำนวนม้วน ทั้งหมด ที่สั่ง: ${totalRolls} ม้วน\n`;
     text += `⏱️ ระยะเวลาที่ใช้ ทั้งหมด: ${timeDetailStr}\n`;
-    text += `-----------------------------------\n`;
-    text += `📋 รายการรันงาน (Job Schedule):\n`;
-
-    planData.jobs.forEach((j, idx) => {
-        const spec = treatmentDb.find(t => t.code === j.code);
-        const calcs = getTreatmentCalculations(spec);
-        const rowTotalMinutes = calcs ? (calcs.totalTimePerRoll * j.rolls) : 0;
-        text += `${idx + 1}. ${j.code} | ${spec ? (spec.compound || '-') : '-'} | ${j.rolls} ม้วน (${formatMinutes(rowTotalMinutes)})\n`;
-    });
-
     text += `-----------------------------------\n`;
     text += `⚙️ สรุปจากระบบ 3-Roll Daily Planning`;
 
