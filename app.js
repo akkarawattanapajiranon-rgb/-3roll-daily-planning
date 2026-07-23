@@ -51,7 +51,7 @@ const DEFAULT_SETTINGS = {
     teamsEnabled: false,
     teamsWebhookUrl: "",
     lineEnabled: true,
-    lineGroupId: "ae0e35a248c911427af16a1a671a1d7e",
+    lineGroupId: "C30127ffb95629169838cc79b031de04a",
     lineAccessToken: "lA3/unyIr+y+wbNB+rZX9Iwd7j7XcIHKVm0eSDtsTkY0jPjuvpbXy2rDOfmqwGPbwQ9bcf7AjSd08IJnJbwsg0MkEWWwp5I429vpOhndlnmrCkKScDzl1ycX3OEPoRtVdq3My317OWpYIcUmgN8eMAdB04t89/1O/w1cDnyilFU="
 };
 
@@ -895,7 +895,7 @@ function loadSettingsIntoForm() {
     const lineGroupIdElem = document.getElementById("setting-line-group-id");
     const lineTokenElem = document.getElementById("setting-line-access-token");
     if (lineEnableElem) lineEnableElem.checked = settings.lineEnabled !== undefined ? settings.lineEnabled : true;
-    if (lineGroupIdElem) lineGroupIdElem.value = settings.lineGroupId || "ae0e35a248c911427af16a1a671a1d7e";
+    if (lineGroupIdElem) lineGroupIdElem.value = settings.lineGroupId || "C30127ffb95629169838cc79b031de04a";
     if (lineTokenElem) lineTokenElem.value = settings.lineAccessToken || "lA3/unyIr+y+wbNB+rZX9Iwd7j7XcIHKVm0eSDtsTkY0jPjuvpbXy2rDOfmqwGPbwQ9bcf7AjSd08IJnJbwsg0MkEWWwp5I429vpOhndlnmrCkKScDzl1ycX3OEPoRtVdq3My317OWpYIcUmgN8eMAdB04t89/1O/w1cDnyilFU=";
 }
 
