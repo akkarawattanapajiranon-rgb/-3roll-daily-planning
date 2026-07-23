@@ -1569,9 +1569,19 @@ async function sendLineMessagingApiNotification(planData, isTest = false) {
         ]
     };
 
-    const targetUrls = [
-        "https://corsproxy.io/?" + encodeURIComponent("https://api.line.me/v2/bot/message/push"),
-        "https://api.line.me/v2/bot/message/push"
+    const endpoints = [
+        {
+            url: "/api/send-line",
+            body: JSON.stringify({ token, payload })
+        },
+        {
+            url: "https://corsproxy.io/?" + encodeURIComponent("https://api.line.me/v2/bot/message/push"),
+            body: JSON.stringify(payload)
+        },
+        {
+            url: "https://api.line.me/v2/bot/message/push",
+            body: JSON.stringify(payload)
+        }
     ];
 
     let lastError = null;
@@ -1579,15 +1589,15 @@ async function sendLineMessagingApiNotification(planData, isTest = false) {
     let resJson = null;
     let statusCode = 0;
 
-    for (const targetUrl of targetUrls) {
+    for (const ep of endpoints) {
         try {
-            const response = await fetch(targetUrl, {
+            const response = await fetch(ep.url, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                     "Authorization": `Bearer ${token}`
                 },
-                body: JSON.stringify(payload)
+                body: ep.body
             });
 
             statusCode = response.status;
