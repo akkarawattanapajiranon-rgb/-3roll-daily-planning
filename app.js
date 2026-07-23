@@ -1021,6 +1021,49 @@ function setupEventListeners() {
         });
     }
 
+    // Share / Copy Summary for LINE Chat
+    const btnCopyLine = document.getElementById("btn-copy-line");
+    if (btnCopyLine) {
+        btnCopyLine.addEventListener("click", () => {
+            if (currentJobs.length === 0) {
+                showToast("ไม่มีรายการทำงานที่จะแชร์", "error");
+                return;
+            }
+            const plannerDateInput = document.getElementById("planner-date");
+            const dateVal = plannerDateInput && plannerDateInput.value ? plannerDateInput.value : new Date().toISOString().split("T")[0];
+            
+            let totalRunMinutes = 0;
+            let codeChangeCount = 0;
+            const singleCodeChangeTime = settings.codeChangeTime !== undefined ? settings.codeChangeTime : 5;
+            
+            currentJobs.forEach((job, index) => {
+                const spec = treatmentDb.find(t => t.code === job.code);
+                if (!spec) return;
+                const calcs = getTreatmentCalculations(spec);
+                totalRunMinutes += calcs.totalTimePerRoll * job.rolls;
+                if (index < currentJobs.length - 1) {
+                    const nextJob = currentJobs[index + 1];
+                    if (nextJob.code !== job.code) {
+                        codeChangeCount++;
+                    }
+                }
+            });
+            
+            const totalCodeChangeTime = codeChangeCount * singleCodeChangeTime;
+            const startupTime = settings.startupTime !== undefined ? settings.startupTime : 15;
+            const plannedDowntime = settings.plannedDowntime !== undefined ? settings.plannedDowntime : 0;
+            const totalNeededMinutes = startupTime + totalRunMinutes + plannedDowntime + totalCodeChangeTime;
+
+            const planData = {
+                date: dateVal,
+                note: formatMinutes(totalNeededMinutes),
+                jobs: currentJobs
+            };
+
+            shareOrCopyLineSummary(planData);
+        });
+    }
+
     // Print
     document.getElementById("btn-print").addEventListener("click", () => {
         window.print();
@@ -1600,6 +1643,9 @@ function renderHistoryTable() {
                 <button class="btn btn-secondary btn-sm btn-copy-teams-history" data-id="${plan.id}" title="คัดลอกข้อความสรุปสำหรับส่งในแชต Teams">
                     <i class="fa-brands fa-microsoft" style="color: #2563eb;"></i> Teams
                 </button>
+                <button class="btn btn-secondary btn-sm btn-copy-line-history" data-id="${plan.id}" title="แชร์/คัดลอกข้อความสรุปส่ง LINE">
+                    <i class="fa-brands fa-line" style="color: #06c755;"></i> LINE
+                </button>
                 <button class="btn btn-secondary btn-sm btn-export-history-csv" data-id="${plan.id}" title="ส่งออก CSV แผนงานนี้">
                     <i class="fa-solid fa-file-csv"></i> CSV
                 </button>
@@ -1638,6 +1684,17 @@ function attachHistoryActions() {
             const plan = savedPlans.find(p => p.id === planId);
             if (plan) {
                 copyTeamsSummaryText(plan);
+            }
+        });
+    });
+
+    document.querySelectorAll(".btn-copy-line-history").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+            const planId = e.currentTarget.getAttribute("data-id");
+            const savedPlans = JSON.parse(localStorage.getItem("saved_plans")) || [];
+            const plan = savedPlans.find(p => p.id === planId);
+            if (plan) {
+                shareOrCopyLineSummary(plan);
             }
         });
     });
@@ -1701,7 +1758,7 @@ function copyTeamsSummaryText(planData) {
     }
 }
 
-function fallbackCopyText(text) {
+function fallbackCopyText(text, targetName = "Teams") {
     const textarea = document.createElement("textarea");
     textarea.value = text;
     textarea.style.position = "fixed";
@@ -1710,11 +1767,52 @@ function fallbackCopyText(text) {
     textarea.select();
     try {
         document.execCommand("copy");
-        showToast("คัดลอกสรุปข้อความแล้ว! วางในแชต Teams กด Ctrl+V ได้เลย 🚀", "success");
+        showToast(`คัดลอกสรุปข้อความแล้ว! วางในแชต ${targetName} กด Ctrl+V ได้เลย 🚀`, "success");
     } catch (err) {
         showToast("ไม่สามารถคัดลอกข้อความได้", "error");
     }
     document.body.removeChild(textarea);
+}
+
+function shareOrCopyLineSummary(planData) {
+    if (!planData || !planData.jobs || planData.jobs.length === 0) {
+        showToast("ไม่มีข้อมูลรายการแผนงานในการแชร์", "error");
+        return;
+    }
+
+    const totalRolls = planData.jobs.reduce((sum, j) => sum + j.rolls, 0);
+    let dateStr = planData.date || new Date().toISOString().split("T")[0];
+    try {
+        const [yr, mo, dy] = dateStr.split("-").map(Number);
+        const dateObj = new Date(yr, mo - 1, dy);
+        dateStr = dateObj.toLocaleDateString("th-TH", { year: "numeric", month: "long", day: "numeric", weekday: "long" });
+    } catch(e) {}
+
+    let text = `🟢 รายงานแผนงานประจำวัน 3-Roll Daily Planning\n`;
+    text += `📅 ประจำวันที่: ${dateStr}\n`;
+    text += `📦 รายการ: ${planData.jobs.length} รายการ | 🌀 ม้วนรวม: ${totalRolls} ม้วน\n`;
+    text += `⏱️ เวลาที่ต้องใช้รวม: ${planData.note || "-"}\n`;
+    text += `-----------------------------------\n`;
+    text += `📋 รายการรันงาน (Job Schedule):\n`;
+
+    planData.jobs.forEach((j, idx) => {
+        const spec = treatmentDb.find(t => t.code === j.code);
+        const calcs = getTreatmentCalculations(spec);
+        const rowTotalMinutes = calcs.totalTimePerRoll * j.rolls;
+        text += `${idx + 1}. ${j.code} | ${spec ? (spec.compound || '-') : '-'} | ${j.rolls} ม้วน (${formatMinutes(rowTotalMinutes)})\n`;
+    });
+
+    text += `-----------------------------------\n`;
+    text += `⚙️ สรุปจากระบบ 3-Roll Daily Planning`;
+
+    const lineShareUrl = `https://line.me/R/share?text=${encodeURIComponent(text)}`;
+    
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).catch(() => {});
+    }
+
+    window.open(lineShareUrl, "_blank");
+    showToast("แชร์ไปยัง LINE เรียบร้อยแล้ว (คัดลอกข้อความลง Clipboard แล้วด้วย) 🟢", "success");
 }
 
 function loadPlanFromHistory(planId) {
