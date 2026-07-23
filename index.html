@@ -438,6 +438,54 @@
                             </form>
                         </div>
                     </div>
+
+                    <!-- LINE Messaging API Notification Card -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title-group">
+                                <i class="fa-brands fa-line card-icon" style="color: #06c755;"></i>
+                                <div>
+                                    <h3>การแจ้งเตือน LINE Messaging API (LINE Auto Group Notification)</h3>
+                                    <p>ส่งข้อความแจ้งเตือนรายงานแผนงานเข้ากลุ่ม LINE ที่กำหนดอัตโนมัติเมื่อบันทึกแผนงาน</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <form id="line-config-form" class="settings-form" onsubmit="event.preventDefault();">
+                                <div class="form-group">
+                                    <label for="setting-line-enable" style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 6px 0;">
+                                        <input type="checkbox" id="setting-line-enable" checked style="width: 18px; height: 18px; cursor: pointer; accent-color: #06c755;">
+                                        <span style="font-weight: 600; color: var(--text-primary);">เปิดใช้งานการส่งแจ้งเตือนเข้ากลุ่ม LINE อัตโนมัติเมื่อกดบันทึกแผนงาน</span>
+                                    </label>
+                                </div>
+                                <div class="form-group">
+                                    <label for="setting-line-group-id">LINE Group ID / User ID</label>
+                                    <div class="input-icon-group" style="position: relative; display: flex; align-items: center;">
+                                        <i class="fa-solid fa-users" style="position: absolute; left: 14px; color: var(--text-muted);"></i>
+                                        <input type="text" id="setting-line-group-id" value="ae0e35a248c911427af16a1a671a1d7e" style="padding-left: 42px;">
+                                    </div>
+                                    <span class="help-text">Group ID หรือ User ID ปลายทางสำหรับรับข้อความ</span>
+                                </div>
+                                <div class="form-group">
+                                    <label for="setting-line-access-token">LINE Channel Access Token</label>
+                                    <div class="input-icon-group" style="position: relative; display: flex; align-items: center;">
+                                        <i class="fa-solid fa-key" style="position: absolute; left: 14px; color: var(--text-muted);"></i>
+                                        <input type="password" id="setting-line-access-token" value="lA3/unyIr+y+wbNB+rZX9Iwd7j7XcIHKVm0eSDtsTkY0jPjuvpbXy2rDOfmqwGPbwQ9bcf7AjSd08IJnJbwsg0MkEWWwp5I429vpOhndlnmrCkKScDzl1ycX3OEPoRtVdq3My317OWpYIcUmgN8eMAdB04t89/1O/w1cDnyilFU=" style="padding-left: 42px;">
+                                    </div>
+                                    <span class="help-text">Long-lived Channel Access Token จาก LINE Developers Console</span>
+                                </div>
+
+                                <div class="form-action-group" style="margin-top: 20px;">
+                                    <button type="button" id="btn-save-line" class="btn btn-success" style="background-color: #06c755; border-color: #05b34c;">
+                                        <i class="fa-solid fa-floppy-disk"></i> บันทึกการตั้งค่า LINE
+                                    </button>
+                                    <button type="button" id="btn-test-line" class="btn btn-secondary">
+                                        <i class="fa-solid fa-paper-plane"></i> ทดสอบส่งข้อความเข้า LINE
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
                 </div>
             </section>
 

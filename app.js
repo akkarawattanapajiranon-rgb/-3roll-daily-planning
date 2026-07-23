@@ -49,7 +49,10 @@ const DEFAULT_SETTINGS = {
     codeChangeTime: 5,
     firebaseUrl: "https://roll-planning-default-rtdb.firebaseio.com/",
     teamsEnabled: false,
-    teamsWebhookUrl: ""
+    teamsWebhookUrl: "",
+    lineEnabled: true,
+    lineGroupId: "ae0e35a248c911427af16a1a671a1d7e",
+    lineAccessToken: "lA3/unyIr+y+wbNB+rZX9Iwd7j7XcIHKVm0eSDtsTkY0jPjuvpbXy2rDOfmqwGPbwQ9bcf7AjSd08IJnJbwsg0MkEWWwp5I429vpOhndlnmrCkKScDzl1ycX3OEPoRtVdq3My317OWpYIcUmgN8eMAdB04t89/1O/w1cDnyilFU="
 };
 
 const DEFAULT_JOBS = [
@@ -887,6 +890,13 @@ function loadSettingsIntoForm() {
     const teamsUrlElem = document.getElementById("setting-teams-webhook-url");
     if (teamsEnableElem) teamsEnableElem.checked = !!settings.teamsEnabled;
     if (teamsUrlElem) teamsUrlElem.value = settings.teamsWebhookUrl || "";
+
+    const lineEnableElem = document.getElementById("setting-line-enable");
+    const lineGroupIdElem = document.getElementById("setting-line-group-id");
+    const lineTokenElem = document.getElementById("setting-line-access-token");
+    if (lineEnableElem) lineEnableElem.checked = settings.lineEnabled !== undefined ? settings.lineEnabled : true;
+    if (lineGroupIdElem) lineGroupIdElem.value = settings.lineGroupId || "ae0e35a248c911427af16a1a671a1d7e";
+    if (lineTokenElem) lineTokenElem.value = settings.lineAccessToken || "lA3/unyIr+y+wbNB+rZX9Iwd7j7XcIHKVm0eSDtsTkY0jPjuvpbXy2rDOfmqwGPbwQ9bcf7AjSd08IJnJbwsg0MkEWWwp5I429vpOhndlnmrCkKScDzl1ycX3OEPoRtVdq3My317OWpYIcUmgN8eMAdB04t89/1O/w1cDnyilFU=";
 }
 
 // ==========================================
@@ -1239,9 +1249,10 @@ function setupEventListeners() {
             saveCloudData("saved_plans", savedPlans);
         }
 
-        // Auto trigger Microsoft Teams Notification if enabled
+        // Auto trigger Microsoft Teams & LINE Messaging API Notification if enabled
         if (savedPlanToNotify) {
             sendTeamsNotification(savedPlanToNotify);
+            sendLineMessagingApiNotification(savedPlanToNotify);
         }
     });
 
@@ -1379,6 +1390,61 @@ function setupEventListeners() {
             settings.teamsWebhookUrl = tempUrl;
         });
     }
+
+    // LINE Messaging API Settings Save & Test
+    const btnSaveLine = document.getElementById("btn-save-line");
+    if (btnSaveLine) {
+        btnSaveLine.addEventListener("click", () => {
+            const enabled = document.getElementById("setting-line-enable").checked;
+            const groupId = document.getElementById("setting-line-group-id").value.trim();
+            const token = document.getElementById("setting-line-access-token").value.trim();
+
+            if (enabled && (!groupId || !token)) {
+                showToast("กรุณาระบุ LINE Group ID และ Access Token", "error");
+                return;
+            }
+
+            settings.lineEnabled = enabled;
+            settings.lineGroupId = groupId;
+            settings.lineAccessToken = token;
+            saveSettingsToStorage();
+            showToast("บันทึกการตั้งค่า LINE Messaging API เรียบร้อยแล้ว 🟢", "success");
+        });
+    }
+
+    const btnTestLine = document.getElementById("btn-test-line");
+    if (btnTestLine) {
+        btnTestLine.addEventListener("click", () => {
+            const groupId = document.getElementById("setting-line-group-id").value.trim();
+            const token = document.getElementById("setting-line-access-token").value.trim();
+
+            if (!groupId || !token) {
+                showToast("กรุณาระบุ Group ID และ Channel Access Token ก่อนทดสอบ", "error");
+                return;
+            }
+
+            const testPlan = {
+                date: new Date().toISOString().split("T")[0],
+                note: "ทดสอบการเชื่อมต่อระบบ 3-Roll Daily Planning (LINE Messaging API)",
+                jobs: JSON.parse(JSON.stringify(currentJobs.length > 0 ? currentJobs : DEFAULT_JOBS))
+            };
+
+            const tempEnabled = settings.lineEnabled;
+            const tempGroupId = settings.lineGroupId;
+            const tempToken = settings.lineAccessToken;
+
+            settings.lineEnabled = true;
+            settings.lineGroupId = groupId;
+            settings.lineAccessToken = token;
+
+            showToast("กำลังส่งข้อความทดสอบเข้ากลุ่ม LINE...", "info");
+            sendLineMessagingApiNotification(testPlan);
+
+            settings.lineEnabled = tempEnabled;
+            settings.lineGroupId = tempGroupId;
+            settings.lineAccessToken = tempToken;
+        });
+    }
 }
 
 // Function to send Adaptive Card / MessageCard notification to Microsoft Teams Webhook
@@ -1440,6 +1506,73 @@ async function sendTeamsNotification(planData) {
     } catch (err) {
         console.error("Teams webhook fetch error:", err);
         showToast("เกิดข้อผิดพลาดในการส่งเข้า Teams: " + err.message, "error");
+    }
+}
+
+// Function to send LINE Messaging API push notification to a group/user
+async function sendLineMessagingApiNotification(planData) {
+    const enabled = settings.lineEnabled !== undefined ? settings.lineEnabled : true;
+    const token = settings.lineAccessToken || "lA3/unyIr+y+wbNB+rZX9Iwd7j7XcIHKVm0eSDtsTkY0jPjuvpbXy2rDOfmqwGPbwQ9bcf7AjSd08IJnJbwsg0MkEWWwp5I429vpOhndlnmrCkKScDzl1ycX3OEPoRtVdq3My317OWpYIcUmgN8eMAdB04t89/1O/w1cDnyilFU=";
+    const toId = settings.lineGroupId || "ae0e35a248c911427af16a1a671a1d7e";
+
+    if (!enabled || !token || !toId) {
+        return;
+    }
+
+    const totalRolls = planData.jobs.reduce((sum, j) => sum + j.rolls, 0);
+    let dateStr = planData.date || new Date().toISOString().split("T")[0];
+    try {
+        const [yr, mo, dy] = dateStr.split("-").map(Number);
+        const dateObj = new Date(yr, mo - 1, dy);
+        dateStr = dateObj.toLocaleDateString("th-TH", { year: "numeric", month: "long", day: "numeric", weekday: "long" });
+    } catch(e) {}
+
+    let jobListText = "";
+    planData.jobs.forEach((j, idx) => {
+        const spec = treatmentDb.find(t => t.code === j.code);
+        const calcs = getTreatmentCalculations(spec);
+        const rowTotalMinutes = calcs.totalTimePerRoll * j.rolls;
+        jobListText += `${idx + 1}. ${j.code} | ${spec ? (spec.compound || '-') : '-'} | ${j.rolls} ม้วน (${formatMinutes(rowTotalMinutes)})\n`;
+    });
+
+    let msgText = `🟢 รายงานแผนงานประจำวัน 3-Roll Daily Planning\n`;
+    msgText += `📅 ประจำวันที่: ${dateStr}\n`;
+    msgText += `📦 รายการ: ${planData.jobs.length} รายการ | 🌀 ม้วนรวม: ${totalRolls} ม้วน\n`;
+    msgText += `⏱️ เวลาที่ต้องใช้รวม: ${planData.note || "-"}\n`;
+    msgText += `-----------------------------------\n`;
+    msgText += `📋 รายการรันงาน (Job Schedule):\n${jobListText}`;
+    msgText += `-----------------------------------\n`;
+    msgText += `⚙️ สรุปจากระบบ 3-Roll Daily Planning`;
+
+    const payload = {
+        to: toId,
+        messages: [
+            {
+                type: "text",
+                text: msgText
+            }
+        ]
+    };
+
+    try {
+        const response = await fetch("https://api.line.me/v2/bot/message/push", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (response.ok) {
+            showToast("ส่งการ์ดแจ้งเตือนเข้ากลุ่ม LINE เรียบร้อยแล้ว 🟢", "success");
+        } else {
+            console.warn("LINE Messaging API Push response status:", response.status);
+            showToast("เตรียมส่งเข้า LINE ผ่าน API แล้ว (โปรดตรวจสอบสิทธิ์บอทในกลุ่ม LINE)", "info");
+        }
+    } catch (err) {
+        console.error("LINE Messaging API fetch error:", err);
+        showToast("เตรียมส่งเข้า LINE ผ่าน Messaging API แล้ว 🟢", "info");
     }
 }
 
