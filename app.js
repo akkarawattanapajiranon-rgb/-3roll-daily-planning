@@ -387,21 +387,21 @@ function calculateAll() {
 
     // Shift Calculations
     const baseStartMinutes = parseTimeToMinutes(settings.startTime || "07:00");
-    const endMinutes = parseTimeToMinutes(settings.endTime || "15:00");
+    const baseEndMinutes = parseTimeToMinutes(settings.endTime || "15:00");
     
-    // Effective Start Minutes for production after PM
-    const startMinutes = baseStartMinutes + pmMinutes;
-    
-    let regularShiftMinutes = endMinutes - baseStartMinutes;
-    if (regularShiftMinutes <= 0) {
-        regularShiftMinutes += 1440; // Over midnight wrap
+    let regularShiftDuration = baseEndMinutes - baseStartMinutes;
+    if (regularShiftDuration <= 0) {
+        regularShiftDuration += 1440; // Over midnight wrap
     }
 
-    // Available shift time left for production after PM
-    let availableShiftForProduction = regularShiftMinutes - pmMinutes;
-    if (availableShiftForProduction < 0) availableShiftForProduction = 0;
+    // Effective Start Minutes for production after PM
+    const startMinutes = baseStartMinutes + pmMinutes;
+    const shiftEndMinutes = startMinutes + regularShiftDuration; // e.g. 11:00 + 8 hrs = 19:00
+    
+    // Regular shift available capacity for production is full 8 hours (480 mins)
+    const availableShiftForProduction = regularShiftDuration;
 
-    // OT Calculation
+    // OT Calculation (Production hours beyond regular shift duration of 8 hours, i.e., after 19:00 PM)
     let otMinutes = 0;
     if (totalNeededMinutes > availableShiftForProduction) {
         otMinutes = totalNeededMinutes - availableShiftForProduction;
@@ -410,6 +410,7 @@ function calculateAll() {
     const finishMinutes = startMinutes + totalNeededMinutes;
     const finishTimeStr = formatMinutesToTime(finishMinutes);
     const startTimeStr = formatMinutesToTime(startMinutes);
+    const shiftEndTimeStr = formatMinutesToTime(shiftEndMinutes);
 
     // Update KPI Card values
     document.getElementById("kpi-total-time").textContent = formatMinutes(totalNeededMinutes);
@@ -419,8 +420,8 @@ function calculateAll() {
     const avgTimePerRoll = totalRolls > 0 ? (totalRunMinutes / totalRolls) : 0;
     document.getElementById("kpi-avg-time-per-roll").textContent = `เฉลี่ย ${avgTimePerRoll.toFixed(1)} นาที/ม้วน`;
 
-    // Utilization Gauge (Normalized against available shift capacity for production)
-    const capacityMinutesForGauge = availableShiftForProduction > 0 ? availableShiftForProduction : regularShiftMinutes;
+    // Utilization Gauge (Normalized against 8-hour regular shift capacity)
+    const capacityMinutesForGauge = availableShiftForProduction;
     const utilizationRate = (totalNeededMinutes / capacityMinutesForGauge) * 100;
     const uPercent = utilizationRate.toFixed(1);
     document.getElementById("kpi-utilization").textContent = `${uPercent}%`;
@@ -452,10 +453,10 @@ function calculateAll() {
     if (hasPm && pmMinutes > 0) {
         if (otMinutes > 0) {
             const otHours = (otMinutes / 60).toFixed(1);
-            otHoursSubEl.innerHTML = `<span class="text-danger" style="font-weight:600;">เริ่ม ${startTimeStr} น. (หลัง PM ${pmHours} ชม.) | OT ${formatMinutes(otMinutes)} (${otHours} ชม.)</span>`;
+            otHoursSubEl.innerHTML = `<span class="text-danger" style="font-weight:600;">เริ่ม ${startTimeStr} น. (กะปกติ ${startTimeStr} - ${shiftEndTimeStr} น.) | OT ${formatMinutes(otMinutes)} (หลัง ${shiftEndTimeStr} น.)</span>`;
             finishOtValueEl.style.color = "var(--color-danger)";
         } else {
-            otHoursSubEl.textContent = `เริ่ม ${startTimeStr} น. (หลัง PM ${pmHours} ชม.) | เลิก ${finishTimeStr} น. (ไม่มี OT)`;
+            otHoursSubEl.textContent = `เริ่ม ${startTimeStr} น. (กะปกติ ${startTimeStr} - ${shiftEndTimeStr} น.) | เลิก ${finishTimeStr} น. (ไม่มี OT)`;
             finishOtValueEl.style.color = "var(--text-primary)";
         }
     } else {
@@ -475,7 +476,7 @@ function calculateAll() {
     if (pmRow && pmTimeEl) {
         if (hasPm && pmMinutes > 0) {
             pmRow.style.display = "flex";
-            pmTimeEl.textContent = `${pmHours} ชม. (${pmMinutes} นาที) | เริ่มรันงาน ${startTimeStr} น.`;
+            pmTimeEl.textContent = `${pmHours} ชม. (${baseStartMinutes === 420 ? '07:00' : formatMinutesToTime(baseStartMinutes)} - ${startTimeStr} น.) | เวลาปกติกะ ${startTimeStr} - ${shiftEndTimeStr} น.`;
         } else {
             pmRow.style.display = "none";
         }
@@ -1667,30 +1668,29 @@ async function sendLineMessagingApiNotification(planData, isTest = false) {
     const [startH, startM] = startTimeStr.split(":").map(Number);
     const [endH, endM] = endTimeStr.split(":").map(Number);
     let baseStartMin = startH * 60 + startM;
-    let endMin = endH * 60 + endM;
-    if (endMin <= baseStartMin) endMin += 24 * 60;
+    let baseEndMin = endH * 60 + endM;
+    if (baseEndMin <= baseStartMin) baseEndMin += 24 * 60;
     
+    const regularShiftDuration = baseEndMin - baseStartMin; // 8 hrs (480 mins)
     const startMinutes = baseStartMin + pmMinutes;
     const effectiveStartTimeStr = formatMinutesToTime(startMinutes);
+    const shiftEndMinutes = startMinutes + regularShiftDuration;
+    const effectiveShiftEndTimeStr = formatMinutesToTime(shiftEndMinutes);
 
-    const regularShiftMinutes = endMin - baseStartMin;
-    let availableShiftForProduction = regularShiftMinutes - pmMinutes;
-    if (availableShiftForProduction < 0) availableShiftForProduction = 0;
-
-    const availableShiftHoursStr = (availableShiftForProduction / 60) % 1 === 0 ? `${availableShiftForProduction / 60} ชม.` : `${(availableShiftForProduction / 60).toFixed(1)} ชม.`;
-
-    const otMinutes = Math.max(0, totalNeededMinutes - availableShiftForProduction);
+    const otMinutes = Math.max(0, totalNeededMinutes - regularShiftDuration);
     let timeDetailStr = "";
+    const shiftHoursStr = (regularShiftDuration / 60) % 1 === 0 ? `${regularShiftDuration / 60} ชม.` : `${(regularShiftDuration / 60).toFixed(1)} ชม.`;
+
     if (otMinutes > 0) {
-        timeDetailStr = `${formatMinutes(totalNeededMinutes)} (เวลาปกติ ${availableShiftHoursStr} + OT ${formatMinutes(otMinutes)})`;
+        timeDetailStr = `${formatMinutes(totalNeededMinutes)} (${shiftHoursStr} + OT ${formatMinutes(otMinutes)}${hasPm ? ' หลัง ' + effectiveShiftEndTimeStr + ' น.' : ''})`;
     } else {
-        timeDetailStr = `${formatMinutes(totalNeededMinutes)} (เวลาปกติ ${availableShiftHoursStr})`;
+        timeDetailStr = `${formatMinutes(totalNeededMinutes)} (${shiftHoursStr})`;
     }
 
     let msgText = `🟢 รายงานแผนงานประจำวัน (3-Roll Daily Planning)\n\n`;
     msgText += `📅 วันที่: ${dateStr}\n`;
     if (hasPm && pmHours > 0) {
-        msgText += `🛠️ ซ่อมบำรุง (PM): ${pmHours} ชม. (เริ่มรันงาน ${effectiveStartTimeStr} น.)\n`;
+        msgText += `🛠️ ซ่อมบำรุง (PM): ${pmHours} ชม. (เริ่มรันงาน ${effectiveStartTimeStr} น. | เวลาปกติกะ ${effectiveStartTimeStr} - ${effectiveShiftEndTimeStr} น.)\n`;
     }
     msgText += `🌀 จำนวนม้วน ทั้งหมด ที่สั่ง: ${totalRolls} ม้วน\n`;
     msgText += `⏱️ ระยะเวลาที่ใช้ ทั้งหมด: ${timeDetailStr}\n`;
@@ -2155,30 +2155,29 @@ function shareOrCopyLineSummary(planData) {
     const [startH, startM] = startTimeStr.split(":").map(Number);
     const [endH, endM] = endTimeStr.split(":").map(Number);
     let baseStartMin = startH * 60 + startM;
-    let endMin = endH * 60 + endM;
-    if (endMin <= baseStartMin) endMin += 24 * 60;
+    let baseEndMin = endH * 60 + endM;
+    if (baseEndMin <= baseStartMin) baseEndMin += 24 * 60;
     
+    const regularShiftDuration = baseEndMin - baseStartMin; // 8 hrs (480 mins)
     const startMinutes = baseStartMin + pmMinutes;
     const effectiveStartTimeStr = formatMinutesToTime(startMinutes);
+    const shiftEndMinutes = startMinutes + regularShiftDuration;
+    const effectiveShiftEndTimeStr = formatMinutesToTime(shiftEndMinutes);
 
-    const regularShiftMinutes = endMin - baseStartMin;
-    let availableShiftForProduction = regularShiftMinutes - pmMinutes;
-    if (availableShiftForProduction < 0) availableShiftForProduction = 0;
-
-    const availableShiftHoursStr = (availableShiftForProduction / 60) % 1 === 0 ? `${availableShiftForProduction / 60} ชม.` : `${(availableShiftForProduction / 60).toFixed(1)} ชม.`;
-
-    const otMinutes = Math.max(0, totalNeededMinutes - availableShiftForProduction);
+    const otMinutes = Math.max(0, totalNeededMinutes - regularShiftDuration);
     let timeDetailStr = "";
+    const shiftHoursStr = (regularShiftDuration / 60) % 1 === 0 ? `${regularShiftDuration / 60} ชม.` : `${(regularShiftDuration / 60).toFixed(1)} ชม.`;
+
     if (otMinutes > 0) {
-        timeDetailStr = `${formatMinutes(totalNeededMinutes)} (เวลาปกติ ${availableShiftHoursStr} + OT ${formatMinutes(otMinutes)})`;
+        timeDetailStr = `${formatMinutes(totalNeededMinutes)} (${shiftHoursStr} + OT ${formatMinutes(otMinutes)}${hasPm ? ' หลัง ' + effectiveShiftEndTimeStr + ' น.' : ''})`;
     } else {
-        timeDetailStr = `${formatMinutes(totalNeededMinutes)} (เวลาปกติ ${availableShiftHoursStr})`;
+        timeDetailStr = `${formatMinutes(totalNeededMinutes)} (${shiftHoursStr})`;
     }
 
     let text = `🟢 รายงานแผนงานประจำวัน (3-Roll Daily Planning)\n\n`;
     text += `📅 วันที่: ${dateStr}\n`;
     if (hasPm && pmHours > 0) {
-        text += `🛠️ ซ่อมบำรุง (PM): ${pmHours} ชม. (เริ่มรันงาน ${effectiveStartTimeStr} น.)\n`;
+        text += `🛠️ ซ่อมบำรุง (PM): ${pmHours} ชม. (เริ่มรันงาน ${effectiveStartTimeStr} น. | เวลาปกติกะ ${effectiveStartTimeStr} - ${effectiveShiftEndTimeStr} น.)\n`;
     }
     text += `🌀 จำนวนม้วน ทั้งหมด ที่สั่ง: ${totalRolls} ม้วน\n`;
     text += `⏱️ ระยะเวลาที่ใช้ ทั้งหมด: ${timeDetailStr}\n`;
