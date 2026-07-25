@@ -1996,57 +1996,55 @@ function renderHistoryTable() {
 
 function attachHistoryActions() {
     document.querySelectorAll(".btn-preview-plan").forEach(btn => {
-        btn.addEventListener("click", () => {
-            const planId = btn.getAttribute("data-id");
+        btn.onclick = (e) => {
+            const planId = e.currentTarget.getAttribute("data-id");
             enterPreviewMode(planId);
-        });
+        };
     });
 
     document.querySelectorAll(".btn-load-plan").forEach(btn => {
-        btn.addEventListener("click", () => {
-            const planId = btn.getAttribute("data-id");
-            if (confirm("ต้องการโหลดแผนงานนี้เข้ามาแทนที่แผนงานปัจจุบันใช่หรือไม่? ข้อมูลปัจจุบันที่ยังไม่ได้บันทึกจะหายไป")) {
-                loadPlanFromHistory(planId);
-            }
-        });
+        btn.onclick = (e) => {
+            const planId = e.currentTarget.getAttribute("data-id");
+            loadPlanFromHistory(planId);
+        };
     });
 
     document.querySelectorAll(".btn-copy-teams-history").forEach(btn => {
-        btn.addEventListener("click", (e) => {
+        btn.onclick = (e) => {
             const planId = e.currentTarget.getAttribute("data-id");
             const savedPlans = JSON.parse(localStorage.getItem("saved_plans")) || [];
-            const plan = savedPlans.find(p => p.id === planId);
+            const plan = savedPlans.find(p => String(p.id) === String(planId));
             if (plan) {
                 copyTeamsSummaryText(plan);
             }
-        });
+        };
     });
 
     document.querySelectorAll(".btn-copy-line-history").forEach(btn => {
-        btn.addEventListener("click", (e) => {
+        btn.onclick = (e) => {
             const planId = e.currentTarget.getAttribute("data-id");
             const savedPlans = JSON.parse(localStorage.getItem("saved_plans")) || [];
-            const plan = savedPlans.find(p => p.id === planId);
+            const plan = savedPlans.find(p => String(p.id) === String(planId));
             if (plan) {
                 shareOrCopyLineSummary(plan);
             }
-        });
+        };
     });
 
     document.querySelectorAll(".btn-export-history-csv").forEach(btn => {
-        btn.addEventListener("click", () => {
-            const planId = btn.getAttribute("data-id");
+        btn.onclick = (e) => {
+            const planId = e.currentTarget.getAttribute("data-id");
             exportHistoryPlanToCSV(planId);
-        });
+        };
     });
 
     document.querySelectorAll(".btn-delete-plan").forEach(btn => {
-        btn.addEventListener("click", () => {
-            const planId = btn.getAttribute("data-id");
+        btn.onclick = (e) => {
+            const planId = e.currentTarget.getAttribute("data-id");
             if (confirm("คุณต้องการลบประวัติแผนงานนี้ใช่หรือไม่?")) {
                 deletePlanFromHistory(planId);
             }
-        });
+        };
     });
 }
 
@@ -2195,10 +2193,11 @@ function shareOrCopyLineSummary(planData) {
 }
 
 function loadPlanFromHistory(planId) {
+    if (!planId) return;
     const savedPlans = JSON.parse(localStorage.getItem("saved_plans")) || [];
-    const plan = savedPlans.find(p => p.id === planId);
+    const plan = savedPlans.find(p => String(p.id) === String(planId));
     if (!plan) {
-        showToast("ไม่พบข้อมูลแผนงาน", "error");
+        showToast("ไม่พบข้อมูลแผนงานที่ระบุ", "error");
         return;
     }
 
@@ -2206,13 +2205,13 @@ function loadPlanFromHistory(planId) {
         exitPreviewMode();
     }
 
-    currentJobs = JSON.parse(JSON.stringify(plan.jobs));
+    currentJobs = JSON.parse(JSON.stringify(plan.jobs || []));
     if (plan.settings) {
         settings = JSON.parse(JSON.stringify(plan.settings));
     }
 
     isEditingSavedPlan = true;
-    editingPlanId = planId;
+    editingPlanId = String(planId);
 
     saveJobsToStorage();
     saveSettingsToStorage();
@@ -2224,8 +2223,14 @@ function loadPlanFromHistory(planId) {
     const pmHoursInput = document.getElementById("planner-pm-hours");
     const pmWrapper = document.getElementById("pm-hours-wrapper");
 
-    if (pmCheckbox) pmCheckbox.checked = !!plan.hasPm;
-    if (pmHoursInput) pmHoursInput.value = plan.pmHours || 4;
+    if (pmCheckbox) {
+        pmCheckbox.checked = !!plan.hasPm;
+        pmCheckbox.disabled = false;
+    }
+    if (pmHoursInput) {
+        pmHoursInput.value = plan.pmHours || 4;
+        pmHoursInput.disabled = false;
+    }
     if (pmWrapper) pmWrapper.style.display = plan.hasPm ? "inline-flex" : "none";
 
     renderJobsTable();
@@ -2235,6 +2240,7 @@ function loadPlanFromHistory(planId) {
     const plannerDateInput = document.getElementById("planner-date");
     if (plannerDateInput) {
         plannerDateInput.value = plan.date;
+        plannerDateInput.disabled = false;
     }
 
     // Update banner UI
@@ -2244,8 +2250,14 @@ function loadPlanFromHistory(planId) {
     const noteWrap = document.getElementById("edit-banner-note-wrap");
 
     if (banner) {
-        const dateObj = new Date(plan.date);
-        const thaiDate = dateObj.toLocaleDateString("th-TH", { year: "numeric", month: "short", day: "numeric" });
+        let thaiDate = plan.date || "-";
+        try {
+            if (plan.date) {
+                const [yr, mo, dy] = plan.date.split("-").map(Number);
+                const dateObj = new Date(yr, mo - 1, dy);
+                thaiDate = dateObj.toLocaleDateString("th-TH", { year: "numeric", month: "short", day: "numeric" });
+            }
+        } catch(e) {}
         dateEl.textContent = thaiDate;
         
         if (plan.note) {
@@ -2268,7 +2280,7 @@ function loadPlanFromHistory(planId) {
 
 function exportHistoryPlanToCSV(planId) {
     const savedPlans = JSON.parse(localStorage.getItem("saved_plans")) || [];
-    const plan = savedPlans.find(p => p.id === planId);
+    const plan = savedPlans.find(p => String(p.id) === String(planId));
     if (!plan) {
         showToast("ไม่พบข้อมูลแผนงาน", "error");
         return;
@@ -2290,7 +2302,7 @@ function exportHistoryPlanToCSV(planId) {
 
 function deletePlanFromHistory(planId) {
     let savedPlans = JSON.parse(localStorage.getItem("saved_plans")) || [];
-    savedPlans = savedPlans.filter(p => p.id !== planId);
+    savedPlans = savedPlans.filter(p => String(p.id) !== String(planId));
     localStorage.setItem("saved_plans", JSON.stringify(savedPlans));
     
     if (settings.firebaseUrl) {
@@ -2298,7 +2310,7 @@ function deletePlanFromHistory(planId) {
     }
 
     // If the plan being deleted is currently previewed, exit preview mode
-    if (isPreviewMode && previewPlanId === planId) {
+    if (isPreviewMode && String(previewPlanId) === String(planId)) {
         exitPreviewMode();
     }
     
@@ -2331,7 +2343,7 @@ function exitEditMode(silent = false) {
 
 function enterPreviewMode(planId) {
     const savedPlans = JSON.parse(localStorage.getItem("saved_plans")) || [];
-    const plan = savedPlans.find(p => p.id === planId);
+    const plan = savedPlans.find(p => String(p.id) === String(planId));
     if (!plan) {
         showToast("ไม่พบข้อมูลแผนงาน", "error");
         return;
