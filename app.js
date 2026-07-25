@@ -77,6 +77,7 @@ const DOWNTIME_COLOR = "#64748b"; // Slate Grey
 const STARTUP_COLOR = "#06b6d4"; // Cyan
 const REMAINING_COLOR = "rgba(255, 255, 255, 0.05)"; // Transparent dark
 const CODE_CHANGE_COLOR = "#a855f7"; // Violet / Purple
+const PM_COLOR = "#f59e0b"; // Amber / PM Maintenance Gold
 
 const SPECS_VERSION = "2.0";
 if (localStorage.getItem("specs_version") !== SPECS_VERSION) {
@@ -371,23 +372,44 @@ function calculateAll() {
     const plannedDowntime = settings.plannedDowntime !== undefined ? settings.plannedDowntime : 0;
     const totalNeededMinutes = startupTime + totalRunMinutes + plannedDowntime + totalCodeChangeTime;
 
+    // PM Maintenance Calculations
+    const pmCheckbox = document.getElementById("planner-has-pm");
+    const pmHoursInput = document.getElementById("planner-pm-hours");
+    const pmWrapper = document.getElementById("pm-hours-wrapper");
+
+    const hasPm = pmCheckbox ? pmCheckbox.checked : false;
+    const pmHours = pmHoursInput ? (parseFloat(pmHoursInput.value) || 0) : 0;
+    const pmMinutes = hasPm ? Math.round(pmHours * 60) : 0;
+
+    if (pmWrapper) {
+        pmWrapper.style.display = hasPm ? "inline-flex" : "none";
+    }
+
     // Shift Calculations
-    const startMinutes = parseTimeToMinutes(settings.startTime || "07:00");
+    const baseStartMinutes = parseTimeToMinutes(settings.startTime || "07:00");
     const endMinutes = parseTimeToMinutes(settings.endTime || "15:00");
     
-    let regularShiftMinutes = endMinutes - startMinutes;
+    // Effective Start Minutes for production after PM
+    const startMinutes = baseStartMinutes + pmMinutes;
+    
+    let regularShiftMinutes = endMinutes - baseStartMinutes;
     if (regularShiftMinutes <= 0) {
         regularShiftMinutes += 1440; // Over midnight wrap
     }
 
+    // Available shift time left for production after PM
+    let availableShiftForProduction = regularShiftMinutes - pmMinutes;
+    if (availableShiftForProduction < 0) availableShiftForProduction = 0;
+
     // OT Calculation
     let otMinutes = 0;
-    if (totalNeededMinutes > regularShiftMinutes) {
-        otMinutes = totalNeededMinutes - regularShiftMinutes;
+    if (totalNeededMinutes > availableShiftForProduction) {
+        otMinutes = totalNeededMinutes - availableShiftForProduction;
     }
 
     const finishMinutes = startMinutes + totalNeededMinutes;
     const finishTimeStr = formatMinutesToTime(finishMinutes);
+    const startTimeStr = formatMinutesToTime(startMinutes);
 
     // Update KPI Card values
     document.getElementById("kpi-total-time").textContent = formatMinutes(totalNeededMinutes);
@@ -397,16 +419,17 @@ function calculateAll() {
     const avgTimePerRoll = totalRolls > 0 ? (totalRunMinutes / totalRolls) : 0;
     document.getElementById("kpi-avg-time-per-roll").textContent = `เฉลี่ย ${avgTimePerRoll.toFixed(1)} นาที/ม้วน`;
 
-    // Utilization Gauge (Normalized against regular shift capacity)
-    const utilizationRate = (totalNeededMinutes / regularShiftMinutes) * 100;
+    // Utilization Gauge (Normalized against available shift capacity for production)
+    const capacityMinutesForGauge = availableShiftForProduction > 0 ? availableShiftForProduction : regularShiftMinutes;
+    const utilizationRate = (totalNeededMinutes / capacityMinutesForGauge) * 100;
     const uPercent = utilizationRate.toFixed(1);
     document.getElementById("kpi-utilization").textContent = `${uPercent}%`;
-    document.getElementById("kpi-available-time").textContent = `รันงาน ${formatMinutes(totalNeededMinutes)} จากเวลาปกติ ${formatMinutes(regularShiftMinutes)}`;
+    document.getElementById("kpi-available-time").textContent = `รันงาน ${formatMinutes(totalNeededMinutes)} จากเวลาปกติ ${formatMinutes(capacityMinutesForGauge)}`;
 
     // Set gauge ring circle stroke
     const circle = document.getElementById("gauge-fill");
     const cappedPercent = Math.min(100, utilizationRate);
-    circle.style.stroke_dasharray = `${cappedPercent}, 100`; // Note: using dasharray directly via style
+    circle.style.stroke_dasharray = `${cappedPercent}, 100`;
     circle.setAttribute("stroke-dasharray", `${cappedPercent}, 100`);
 
     // Alert color change if overcapacity
@@ -426,16 +449,38 @@ function calculateAll() {
     const otHoursSubEl = document.getElementById("kpi-ot-hours");
     
     finishOtValueEl.textContent = `${finishTimeStr} น.`;
-    if (otMinutes > 0) {
-        const otHours = (otMinutes / 60).toFixed(1);
-        otHoursSubEl.innerHTML = `<span class="text-danger" style="font-weight:600;">เกินเวลาปกติ | OT ${formatMinutes(otMinutes)} (${otHours} ชม.)</span>`;
-        finishOtValueEl.style.color = "var(--color-danger)";
+    if (hasPm && pmMinutes > 0) {
+        if (otMinutes > 0) {
+            const otHours = (otMinutes / 60).toFixed(1);
+            otHoursSubEl.innerHTML = `<span class="text-danger" style="font-weight:600;">เริ่ม ${startTimeStr} น. (หลัง PM ${pmHours} ชม.) | OT ${formatMinutes(otMinutes)} (${otHours} ชม.)</span>`;
+            finishOtValueEl.style.color = "var(--color-danger)";
+        } else {
+            otHoursSubEl.textContent = `เริ่ม ${startTimeStr} น. (หลัง PM ${pmHours} ชม.) | เลิก ${finishTimeStr} น. (ไม่มี OT)`;
+            finishOtValueEl.style.color = "var(--text-primary)";
+        }
     } else {
-        otHoursSubEl.textContent = `ปกติเลิก ${settings.endTime || "15:00"} น. | ไม่มี OT`;
-        finishOtValueEl.style.color = "var(--text-primary)";
+        if (otMinutes > 0) {
+            const otHours = (otMinutes / 60).toFixed(1);
+            otHoursSubEl.innerHTML = `<span class="text-danger" style="font-weight:600;">เกินเวลาปกติ | OT ${formatMinutes(otMinutes)} (${otHours} ชม.)</span>`;
+            finishOtValueEl.style.color = "var(--color-danger)";
+        } else {
+            otHoursSubEl.textContent = `ปกติเลิก ${settings.endTime || "15:00"} น. | ไม่มี OT`;
+            finishOtValueEl.style.color = "var(--text-primary)";
+        }
     }
 
     // Update Detail Box in Right Panel
+    const pmRow = document.getElementById("summary-pm-row");
+    const pmTimeEl = document.getElementById("summary-pm-time");
+    if (pmRow && pmTimeEl) {
+        if (hasPm && pmMinutes > 0) {
+            pmRow.style.display = "flex";
+            pmTimeEl.textContent = `${pmHours} ชม. (${pmMinutes} นาที) | เริ่มรันงาน ${startTimeStr} น.`;
+        } else {
+            pmRow.style.display = "none";
+        }
+    }
+
     document.getElementById("summary-workday").textContent = `${(regularShiftMinutes / 60).toFixed(1)} ชม. (${regularShiftMinutes} นาที)`;
     document.getElementById("summary-run-time").textContent = `${Math.round(totalRunMinutes)} นาที`;
     document.getElementById("summary-downtime").textContent = `${plannedDowntime} นาที (+ Startup ${startupTime} น.)`;
@@ -447,9 +492,9 @@ function calculateAll() {
     }
 
     const remainingEl = document.getElementById("summary-remaining-time");
-    const remainingMinutes = Math.max(0, regularShiftMinutes - totalNeededMinutes);
-    if (totalNeededMinutes > regularShiftMinutes) {
-        remainingEl.textContent = `เกินเวลาปกติ (OT) ${Math.round(totalNeededMinutes - regularShiftMinutes)} นาที`;
+    const remainingMinutes = Math.max(0, capacityMinutesForGauge - totalNeededMinutes);
+    if (totalNeededMinutes > capacityMinutesForGauge) {
+        remainingEl.textContent = `เกินเวลาปกติ (OT) ${Math.round(totalNeededMinutes - capacityMinutesForGauge)} นาที`;
         remainingEl.className = "text-danger";
     } else {
         remainingEl.textContent = `${Math.round(remainingMinutes)} นาที`;
@@ -457,7 +502,16 @@ function calculateAll() {
     }
 
     // Draw Stacked Progress Bar & Legend
-    const totalCapacityForBar = Math.max(regularShiftMinutes, totalNeededMinutes);
+    if (hasPm && pmMinutes > 0) {
+        itemsBreakdown.unshift({
+            type: "pm",
+            label: `ซ่อมบำรุง (PM เครื่องจักร): ${pmHours} ชม. (${baseStartMinutes === 420 ? '07:00' : formatMinutesToTime(baseStartMinutes)} - ${startTimeStr} น.)`,
+            totalMinutes: pmMinutes,
+            color: PM_COLOR
+        });
+    }
+
+    const totalCapacityForBar = Math.max(regularShiftMinutes, pmMinutes + totalNeededMinutes);
     renderBreakdownChart(itemsBreakdown, startupTime, plannedDowntime, totalCapacityForBar, regularShiftMinutes, totalCodeChangeTime, codeChangeCount);
 }
 
@@ -927,6 +981,22 @@ function setupEventListeners() {
         showToast("เพิ่มแถวทำงานรันใหม่เรียบร้อย", "success");
     });
 
+    // PM Maintenance Controls Event Listeners
+    const pmCheckbox = document.getElementById("planner-has-pm");
+    if (pmCheckbox) {
+        pmCheckbox.addEventListener("change", () => {
+            const wrapper = document.getElementById("pm-hours-wrapper");
+            if (wrapper) wrapper.style.display = pmCheckbox.checked ? "inline-flex" : "none";
+            calculateAll();
+        });
+    }
+
+    const pmHoursInput = document.getElementById("planner-pm-hours");
+    if (pmHoursInput) {
+        pmHoursInput.addEventListener("input", calculateAll);
+        pmHoursInput.addEventListener("change", calculateAll);
+    }
+
     // Save Settings Event
     document.getElementById("btn-save-settings").addEventListener("click", () => {
         const startTime = document.getElementById("setting-start-time").value;
@@ -1166,6 +1236,9 @@ function setupEventListeners() {
         let savedPlans = JSON.parse(localStorage.getItem("saved_plans")) || [];
         let savedPlanToNotify = null;
 
+        const hasPm = document.getElementById("planner-has-pm")?.checked || false;
+        const pmHours = parseFloat(document.getElementById("planner-pm-hours")?.value) || 4;
+
         if (isEditingSavedPlan && editingPlanId) {
             const saveMode = document.querySelector('input[name="save-mode"]:checked')?.value || "overwrite";
             
@@ -1176,6 +1249,8 @@ function setupEventListeners() {
                         ...savedPlans[index],
                         date: dateVal,
                         note: noteVal,
+                        hasPm: hasPm,
+                        pmHours: hasPm ? pmHours : 0,
                         jobs: JSON.parse(JSON.stringify(currentJobs)),
                         settings: JSON.parse(JSON.stringify(settings)),
                         timestamp: Date.now()
@@ -1189,6 +1264,8 @@ function setupEventListeners() {
                         id: "plan_" + Date.now(),
                         date: dateVal,
                         note: noteVal,
+                        hasPm: hasPm,
+                        pmHours: hasPm ? pmHours : 0,
                         jobs: JSON.parse(JSON.stringify(currentJobs)),
                         settings: JSON.parse(JSON.stringify(settings)),
                         timestamp: Date.now()
@@ -1204,6 +1281,8 @@ function setupEventListeners() {
                     id: "plan_" + Date.now(),
                     date: dateVal,
                     note: noteVal,
+                    hasPm: hasPm,
+                    pmHours: hasPm ? pmHours : 0,
                     jobs: JSON.parse(JSON.stringify(currentJobs)),
                     settings: JSON.parse(JSON.stringify(settings)),
                     timestamp: Date.now()
@@ -1219,6 +1298,8 @@ function setupEventListeners() {
                 id: "plan_" + Date.now(),
                 date: dateVal,
                 note: noteVal,
+                hasPm: hasPm,
+                pmHours: hasPm ? pmHours : 0,
                 jobs: JSON.parse(JSON.stringify(currentJobs)),
                 settings: JSON.parse(JSON.stringify(settings)),
                 timestamp: Date.now()
@@ -1233,6 +1314,11 @@ function setupEventListeners() {
         
         // Clear planner data on screen after save
         currentJobs = [];
+        const pmCheckbox = document.getElementById("planner-has-pm");
+        const pmWrapper = document.getElementById("pm-hours-wrapper");
+        if (pmCheckbox) pmCheckbox.checked = false;
+        if (pmWrapper) pmWrapper.style.display = "none";
+
         saveJobsToStorage();
         renderJobsTable();
         calculateAll();
@@ -1548,7 +1634,7 @@ async function sendLineMessagingApiNotification(planData, isTest = false) {
         dateStr = dateObj.toLocaleDateString("th-TH", { year: "numeric", month: "long", day: "numeric", weekday: "long" });
     } catch(e) {}
 
-    // Calculate time breakdown (8 ชม. + OT)
+    // Calculate time breakdown (8 ชม. + OT) & PM
     const startupTime = (planData.settings && planData.settings.startupTime !== undefined) ? planData.settings.startupTime : (settings.startupTime || 15);
     const plannedDowntime = (planData.settings && planData.settings.plannedDowntime !== undefined) ? planData.settings.plannedDowntime : (settings.plannedDowntime || 0);
     const singleCodeChangeTime = (planData.settings && planData.settings.codeChangeTime !== undefined) ? planData.settings.codeChangeTime : (settings.codeChangeTime || 5);
@@ -1572,26 +1658,40 @@ async function sendLineMessagingApiNotification(planData, isTest = false) {
     const totalCodeChangeTime = codeChangeCount * singleCodeChangeTime;
     const totalNeededMinutes = startupTime + totalRunMinutes + plannedDowntime + totalCodeChangeTime;
 
+    const hasPm = planData.hasPm || false;
+    const pmHours = planData.pmHours || 0;
+    const pmMinutes = hasPm ? Math.round(pmHours * 60) : 0;
+
     const startTimeStr = (planData.settings && planData.settings.startTime) || settings.startTime || "07:00";
     const endTimeStr = (planData.settings && planData.settings.endTime) || settings.endTime || "15:00";
     const [startH, startM] = startTimeStr.split(":").map(Number);
     const [endH, endM] = endTimeStr.split(":").map(Number);
-    let startMin = startH * 60 + startM;
+    let baseStartMin = startH * 60 + startM;
     let endMin = endH * 60 + endM;
-    if (endMin <= startMin) endMin += 24 * 60;
-    const regularShiftMinutes = endMin - startMin;
-    const regularShiftHoursStr = (regularShiftMinutes / 60) % 1 === 0 ? `${regularShiftMinutes / 60} ชม.` : `${(regularShiftMinutes / 60).toFixed(1)} ชม.`;
+    if (endMin <= baseStartMin) endMin += 24 * 60;
+    
+    const startMinutes = baseStartMin + pmMinutes;
+    const effectiveStartTimeStr = formatMinutesToTime(startMinutes);
 
-    const otMinutes = Math.max(0, totalNeededMinutes - regularShiftMinutes);
+    const regularShiftMinutes = endMin - baseStartMin;
+    let availableShiftForProduction = regularShiftMinutes - pmMinutes;
+    if (availableShiftForProduction < 0) availableShiftForProduction = 0;
+
+    const availableShiftHoursStr = (availableShiftForProduction / 60) % 1 === 0 ? `${availableShiftForProduction / 60} ชม.` : `${(availableShiftForProduction / 60).toFixed(1)} ชม.`;
+
+    const otMinutes = Math.max(0, totalNeededMinutes - availableShiftForProduction);
     let timeDetailStr = "";
     if (otMinutes > 0) {
-        timeDetailStr = `${formatMinutes(totalNeededMinutes)} (${regularShiftHoursStr} + OT ${formatMinutes(otMinutes)})`;
+        timeDetailStr = `${formatMinutes(totalNeededMinutes)} (เวลาปกติ ${availableShiftHoursStr} + OT ${formatMinutes(otMinutes)})`;
     } else {
-        timeDetailStr = `${formatMinutes(totalNeededMinutes)} (${regularShiftHoursStr})`;
+        timeDetailStr = `${formatMinutes(totalNeededMinutes)} (เวลาปกติ ${availableShiftHoursStr})`;
     }
 
     let msgText = `🟢 รายงานแผนงานประจำวัน (3-Roll Daily Planning)\n\n`;
     msgText += `📅 วันที่: ${dateStr}\n`;
+    if (hasPm && pmHours > 0) {
+        msgText += `🛠️ ซ่อมบำรุง (PM): ${pmHours} ชม. (เริ่มรันงาน ${effectiveStartTimeStr} น.)\n`;
+    }
     msgText += `🌀 จำนวนม้วน ทั้งหมด ที่สั่ง: ${totalRolls} ม้วน\n`;
     msgText += `⏱️ ระยะเวลาที่ใช้ ทั้งหมด: ${timeDetailStr}\n`;
     msgText += `-----------------------------------\n`;
@@ -1842,6 +1942,13 @@ function renderHistoryTable() {
         const totalRolls = plan.jobs.reduce((sum, j) => sum + j.rolls, 0);
 
         let badgesHtml = '<div class="job-preview-container">';
+        if (plan.hasPm && plan.pmHours > 0) {
+            badgesHtml += `
+                <span class="job-badge" style="background: rgba(245, 158, 11, 0.15); color: #d97706; border-color: rgba(245, 158, 11, 0.4);">
+                    <i class="fa-solid fa-wrench"></i> PM ${plan.pmHours} ชม.
+                </span>
+            `;
+        }
         plan.jobs.forEach(j => {
             badgesHtml += `
                 <span class="job-badge">
@@ -2039,26 +2146,40 @@ function shareOrCopyLineSummary(planData) {
     const totalCodeChangeTime = codeChangeCount * singleCodeChangeTime;
     const totalNeededMinutes = startupTime + totalRunMinutes + plannedDowntime + totalCodeChangeTime;
 
+    const hasPm = planData.hasPm || false;
+    const pmHours = planData.pmHours || 0;
+    const pmMinutes = hasPm ? Math.round(pmHours * 60) : 0;
+
     const startTimeStr = (planData.settings && planData.settings.startTime) || settings.startTime || "07:00";
     const endTimeStr = (planData.settings && planData.settings.endTime) || settings.endTime || "15:00";
     const [startH, startM] = startTimeStr.split(":").map(Number);
     const [endH, endM] = endTimeStr.split(":").map(Number);
-    let startMin = startH * 60 + startM;
+    let baseStartMin = startH * 60 + startM;
     let endMin = endH * 60 + endM;
-    if (endMin <= startMin) endMin += 24 * 60;
-    const regularShiftMinutes = endMin - startMin;
-    const regularShiftHoursStr = (regularShiftMinutes / 60) % 1 === 0 ? `${regularShiftMinutes / 60} ชม.` : `${(regularShiftMinutes / 60).toFixed(1)} ชม.`;
+    if (endMin <= baseStartMin) endMin += 24 * 60;
+    
+    const startMinutes = baseStartMin + pmMinutes;
+    const effectiveStartTimeStr = formatMinutesToTime(startMinutes);
 
-    const otMinutes = Math.max(0, totalNeededMinutes - regularShiftMinutes);
+    const regularShiftMinutes = endMin - baseStartMin;
+    let availableShiftForProduction = regularShiftMinutes - pmMinutes;
+    if (availableShiftForProduction < 0) availableShiftForProduction = 0;
+
+    const availableShiftHoursStr = (availableShiftForProduction / 60) % 1 === 0 ? `${availableShiftForProduction / 60} ชม.` : `${(availableShiftForProduction / 60).toFixed(1)} ชม.`;
+
+    const otMinutes = Math.max(0, totalNeededMinutes - availableShiftForProduction);
     let timeDetailStr = "";
     if (otMinutes > 0) {
-        timeDetailStr = `${formatMinutes(totalNeededMinutes)} (${regularShiftHoursStr} + OT ${formatMinutes(otMinutes)})`;
+        timeDetailStr = `${formatMinutes(totalNeededMinutes)} (เวลาปกติ ${availableShiftHoursStr} + OT ${formatMinutes(otMinutes)})`;
     } else {
-        timeDetailStr = `${formatMinutes(totalNeededMinutes)} (${regularShiftHoursStr})`;
+        timeDetailStr = `${formatMinutes(totalNeededMinutes)} (เวลาปกติ ${availableShiftHoursStr})`;
     }
 
     let text = `🟢 รายงานแผนงานประจำวัน (3-Roll Daily Planning)\n\n`;
     text += `📅 วันที่: ${dateStr}\n`;
+    if (hasPm && pmHours > 0) {
+        text += `🛠️ ซ่อมบำรุง (PM): ${pmHours} ชม. (เริ่มรันงาน ${effectiveStartTimeStr} น.)\n`;
+    }
     text += `🌀 จำนวนม้วน ทั้งหมด ที่สั่ง: ${totalRolls} ม้วน\n`;
     text += `⏱️ ระยะเวลาที่ใช้ ทั้งหมด: ${timeDetailStr}\n`;
     text += `-----------------------------------\n`;
@@ -2098,6 +2219,16 @@ function loadPlanFromHistory(planId) {
     saveSettingsToStorage();
 
     loadSettingsIntoForm();
+    
+    // Restore PM Maintenance settings
+    const pmCheckbox = document.getElementById("planner-has-pm");
+    const pmHoursInput = document.getElementById("planner-pm-hours");
+    const pmWrapper = document.getElementById("pm-hours-wrapper");
+
+    if (pmCheckbox) pmCheckbox.checked = !!plan.hasPm;
+    if (pmHoursInput) pmHoursInput.value = plan.pmHours || 4;
+    if (pmWrapper) pmWrapper.style.display = plan.hasPm ? "inline-flex" : "none";
+
     renderJobsTable();
     calculateAll();
 
@@ -2231,6 +2362,21 @@ function enterPreviewMode(planId) {
         plannerDateInput.disabled = true;
     }
 
+    // Restore PM settings for preview mode
+    const pmCheckbox = document.getElementById("planner-has-pm");
+    const pmHoursInput = document.getElementById("planner-pm-hours");
+    const pmWrapper = document.getElementById("pm-hours-wrapper");
+
+    if (pmCheckbox) {
+        pmCheckbox.checked = !!plan.hasPm;
+        pmCheckbox.disabled = true;
+    }
+    if (pmHoursInput) {
+        pmHoursInput.value = plan.pmHours || 4;
+        pmHoursInput.disabled = true;
+    }
+    if (pmWrapper) pmWrapper.style.display = plan.hasPm ? "inline-flex" : "none";
+
     // Display banner and set text
     const banner = document.getElementById("preview-mode-banner");
     const dateEl = document.getElementById("preview-banner-date");
@@ -2292,6 +2438,21 @@ function exitPreviewMode() {
         const localDate = new Date(now.getTime() - (offset * 60 * 1000));
         plannerDateInput.value = localDate.toISOString().split("T")[0];
     }
+
+    // Reset PM controls
+    const pmCheckbox = document.getElementById("planner-has-pm");
+    const pmHoursInput = document.getElementById("planner-pm-hours");
+    const pmWrapper = document.getElementById("pm-hours-wrapper");
+
+    if (pmCheckbox) {
+        pmCheckbox.checked = false;
+        pmCheckbox.disabled = false;
+    }
+    if (pmHoursInput) {
+        pmHoursInput.value = 4;
+        pmHoursInput.disabled = false;
+    }
+    if (pmWrapper) pmWrapper.style.display = "none";
 
     // Recalculate and re-render Planner
     renderJobsTable();
