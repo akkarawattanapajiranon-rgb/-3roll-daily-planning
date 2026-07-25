@@ -389,17 +389,17 @@ function calculateAll() {
     const baseStartMinutes = parseTimeToMinutes(settings.startTime || "07:00");
     const baseEndMinutes = parseTimeToMinutes(settings.endTime || "15:00");
     
-    let regularShiftDuration = baseEndMinutes - baseStartMinutes;
-    if (regularShiftDuration <= 0) {
-        regularShiftDuration += 1440; // Over midnight wrap
+    let regularShiftMinutes = baseEndMinutes - baseStartMinutes;
+    if (regularShiftMinutes <= 0) {
+        regularShiftMinutes += 1440; // Over midnight wrap
     }
 
     // Effective Start Minutes for production after PM
     const startMinutes = baseStartMinutes + pmMinutes;
-    const shiftEndMinutes = startMinutes + regularShiftDuration; // e.g. 11:00 + 8 hrs = 19:00
+    const shiftEndMinutes = startMinutes + regularShiftMinutes; // e.g. 11:00 + 8 hrs = 19:00
     
     // Regular shift available capacity for production is full 8 hours (480 mins)
-    const availableShiftForProduction = regularShiftDuration;
+    const availableShiftForProduction = regularShiftMinutes;
 
     // OT Calculation (Production hours beyond regular shift duration of 8 hours, i.e., after 19:00 PM)
     let otMinutes = 0;
@@ -2575,8 +2575,12 @@ async function fetchCloudData(endpoint) {
         let baseUrl = settings.firebaseUrl.trim();
         if (baseUrl.endsWith("/")) baseUrl = baseUrl.slice(0, -1);
         
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
+
         const url = `${baseUrl}/${endpoint}.json`;
-        const res = await fetch(url);
+        const res = await fetch(url, { signal: controller.signal });
+        clearTimeout(timeoutId);
         if (!res.ok) throw new Error("Firebase fetch failed");
         return await res.json();
     } catch (e) {
@@ -2591,14 +2595,19 @@ async function saveCloudData(endpoint, data) {
         let baseUrl = settings.firebaseUrl.trim();
         if (baseUrl.endsWith("/")) baseUrl = baseUrl.slice(0, -1);
         
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
+
         const url = `${baseUrl}/${endpoint}.json`;
         const res = await fetch(url, {
             method: "PUT",
             headers: {
                 "Content-Type": "application/json"
             },
-            body: JSON.stringify(data)
+            body: JSON.stringify(data),
+            signal: controller.signal
         });
+        clearTimeout(timeoutId);
         return res.ok;
     } catch (e) {
         console.error(`Error saving ${endpoint} to Cloud:`, e);
