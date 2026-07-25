@@ -1970,18 +1970,6 @@ function closeSavePlanModal() {
     document.getElementById("modal-save-plan").classList.remove("active");
 }
 
-function renderHistoryTable() {
-    const tbody = document.getElementById("history-plan-list");
-    const emptyState = document.getElementById("no-history-message");
-    if (!tbody || !emptyState) return;
-
-    tbody.innerHTML = "";
-    const savedPlans = JSON.parse(localStorage.getItem("saved_plans")) || [];
-
-    if (savedPlans.length === 0) {
-        emptyState.style.display = "flex";
-        return;
-    }
 function findSavedPlan(planId) {
     if (!planId) return null;
     const savedPlans = JSON.parse(localStorage.getItem("saved_plans")) || [];
