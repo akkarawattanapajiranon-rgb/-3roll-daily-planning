@@ -1538,6 +1538,55 @@ function setupEventListeners() {
             settings.lineAccessToken = tempToken;
         });
     }
+
+    // Event Delegation for History Log Table
+    const historyList = document.getElementById("history-plan-list");
+    if (historyList) {
+        historyList.addEventListener("click", (e) => {
+            const btn = e.target.closest("button");
+            if (!btn) return;
+            const planId = btn.getAttribute("data-id");
+            if (!planId) return;
+
+            if (btn.classList.contains("btn-preview-plan")) {
+                enterPreviewMode(planId);
+            } else if (btn.classList.contains("btn-load-plan")) {
+                loadPlanFromHistory(planId);
+            } else if (btn.classList.contains("btn-copy-teams-history")) {
+                const plan = findSavedPlan(planId);
+                if (plan) copyTeamsSummaryText(plan);
+            } else if (btn.classList.contains("btn-copy-line-history")) {
+                const plan = findSavedPlan(planId);
+                if (plan) shareOrCopyLineSummary(plan);
+            } else if (btn.classList.contains("btn-export-history-csv")) {
+                exportHistoryPlanToCSV(planId);
+            } else if (btn.classList.contains("btn-delete-plan")) {
+                if (confirm("คุณต้องการลบประวัติแผนงานนี้ใช่หรือไม่?")) {
+                    deletePlanFromHistory(planId);
+                }
+            }
+        });
+    }
+
+    // Event Delegation for Master Database Table
+    const dbList = document.getElementById("db-treatment-list");
+    if (dbList) {
+        dbList.addEventListener("click", (e) => {
+            const btn = e.target.closest("button");
+            if (!btn) return;
+            const code = btn.getAttribute("data-code");
+            if (!code) return;
+
+            if (btn.classList.contains("btn-edit-db")) {
+                const spec = treatmentDb.find(t => String(t.code) === String(code));
+                if (spec) openTreatmentModal("edit", spec);
+            } else if (btn.classList.contains("btn-delete-db")) {
+                if (confirm(`คุณต้องการลบรหัส "${code}" ออกจากฐานข้อมูลใช่หรือไม่?`)) {
+                    deleteTreatmentCode(code);
+                }
+            }
+        });
+    }
 }
 
 // Function to send Adaptive Card / MessageCard notification to Microsoft Teams Webhook
@@ -1933,6 +1982,40 @@ function renderHistoryTable() {
         emptyState.style.display = "flex";
         return;
     }
+function findSavedPlan(planId) {
+    if (!planId) return null;
+    const savedPlans = JSON.parse(localStorage.getItem("saved_plans")) || [];
+    return savedPlans.find(p => 
+        String(p.id) === String(planId) || 
+        (p.timestamp && String(p.timestamp) === String(planId))
+    ) || null;
+}
+
+function switchTabToPlanner() {
+    const navButtons = document.querySelectorAll(".nav-btn");
+    const tabContents = document.querySelectorAll(".tab-content");
+    navButtons.forEach(b => {
+        if (b.getAttribute("data-tab") === "planner") b.classList.add("active");
+        else b.classList.remove("active");
+    });
+    tabContents.forEach(tab => {
+        if (tab.id === "tab-planner") tab.classList.add("active");
+        else tab.classList.remove("active");
+    });
+}
+
+function renderHistoryTable() {
+    const tbody = document.getElementById("history-plan-list");
+    const emptyState = document.getElementById("no-history-message");
+    if (!tbody || !emptyState) return;
+
+    tbody.innerHTML = "";
+    const savedPlans = JSON.parse(localStorage.getItem("saved_plans")) || [];
+
+    if (savedPlans.length === 0) {
+        emptyState.style.display = "flex";
+        return;
+    }
     emptyState.style.display = "none";
 
     savedPlans.sort((a, b) => b.timestamp - a.timestamp);
@@ -1959,8 +2042,16 @@ function renderHistoryTable() {
         });
         badgesHtml += '</div>';
 
-        const dateObj = new Date(plan.date);
-        const thaiDate = dateObj.toLocaleDateString("th-TH", { year: "numeric", month: "short", day: "numeric" });
+        let thaiDate = plan.date || "-";
+        try {
+            if (plan.date) {
+                const [yr, mo, dy] = plan.date.split("-").map(Number);
+                const dateObj = new Date(yr, mo - 1, dy);
+                thaiDate = dateObj.toLocaleDateString("th-TH", { year: "numeric", month: "short", day: "numeric" });
+            }
+        } catch(e) {}
+
+        const planId = plan.id || plan.timestamp || "";
 
         tr.innerHTML = `
             <td class="text-bold">${thaiDate}</td>
@@ -1968,22 +2059,22 @@ function renderHistoryTable() {
             <td class="text-bold text-highlight">${totalRolls} ม้วน</td>
             <td>${badgesHtml}</td>
             <td style="text-align: center;">
-                <button class="btn btn-success btn-sm btn-preview-plan" data-id="${plan.id}" title="ดูรายละเอียดบนแดชบอร์ด">
+                <button class="btn btn-success btn-sm btn-preview-plan" data-id="${planId}" title="ดูรายละเอียดบนแดชบอร์ด">
                     <i class="fa-solid fa-gauge"></i> ดูแดชบอร์ด
                 </button>
-                <button class="btn btn-primary btn-sm btn-load-plan" data-id="${plan.id}" title="ดึงข้อมูลกลับมาเพื่อแก้ไขแผนงาน">
+                <button class="btn btn-primary btn-sm btn-load-plan" data-id="${planId}" title="ดึงข้อมูลกลับมาเพื่อแก้ไขแผนงาน">
                     <i class="fa-solid fa-pen-to-square"></i> แก้ไขแผน
                 </button>
-                <button class="btn btn-secondary btn-sm btn-copy-teams-history" data-id="${plan.id}" title="คัดลอกข้อความสรุปสำหรับส่งในแชต Teams">
+                <button class="btn btn-secondary btn-sm btn-copy-teams-history" data-id="${planId}" title="คัดลอกข้อความสรุปสำหรับส่งในแชต Teams">
                     <i class="fa-brands fa-microsoft" style="color: #2563eb;"></i> Teams
                 </button>
-                <button class="btn btn-secondary btn-sm btn-copy-line-history" data-id="${plan.id}" title="แชร์/คัดลอกข้อความสรุปส่ง LINE">
+                <button class="btn btn-secondary btn-sm btn-copy-line-history" data-id="${planId}" title="แชร์/คัดลอกข้อความสรุปส่ง LINE">
                     <i class="fa-brands fa-line" style="color: #06c755;"></i> LINE
                 </button>
-                <button class="btn btn-secondary btn-sm btn-export-history-csv" data-id="${plan.id}" title="ส่งออก CSV แผนงานนี้">
+                <button class="btn btn-secondary btn-sm btn-export-history-csv" data-id="${planId}" title="ส่งออก CSV แผนงานนี้">
                     <i class="fa-solid fa-file-csv"></i> CSV
                 </button>
-                <button class="btn btn-danger btn-sm btn-delete-plan" data-id="${plan.id}" title="ลบแผนงานย้อนหลัง">
+                <button class="btn btn-danger btn-sm btn-delete-plan" data-id="${planId}" title="ลบแผนงานย้อนหลัง">
                     <i class="fa-solid fa-trash-can"></i>
                 </button>
             </td>
@@ -2012,8 +2103,7 @@ function attachHistoryActions() {
     document.querySelectorAll(".btn-copy-teams-history").forEach(btn => {
         btn.onclick = (e) => {
             const planId = e.currentTarget.getAttribute("data-id");
-            const savedPlans = JSON.parse(localStorage.getItem("saved_plans")) || [];
-            const plan = savedPlans.find(p => String(p.id) === String(planId));
+            const plan = findSavedPlan(planId);
             if (plan) {
                 copyTeamsSummaryText(plan);
             }
@@ -2023,8 +2113,7 @@ function attachHistoryActions() {
     document.querySelectorAll(".btn-copy-line-history").forEach(btn => {
         btn.onclick = (e) => {
             const planId = e.currentTarget.getAttribute("data-id");
-            const savedPlans = JSON.parse(localStorage.getItem("saved_plans")) || [];
-            const plan = savedPlans.find(p => String(p.id) === String(planId));
+            const plan = findSavedPlan(planId);
             if (plan) {
                 shareOrCopyLineSummary(plan);
             }
@@ -2271,11 +2360,7 @@ function loadPlanFromHistory(planId) {
     }
 
     showToast("โหลดแผนงานประวัติย้อนหลังเข้าสู่โหมดแก้ไขเรียบร้อยแล้ว", "success");
-
-    const plannerBtn = document.querySelector('.nav-btn[data-tab="planner"]');
-    if (plannerBtn) {
-        plannerBtn.click();
-    }
+    switchTabToPlanner();
 }
 
 function exportHistoryPlanToCSV(planId) {
@@ -2414,11 +2499,7 @@ function enterPreviewMode(planId) {
     calculateAll();
 
     // Switch tab to Planner
-    const plannerBtn = document.querySelector('.nav-btn[data-tab="planner"]');
-    if (plannerBtn) {
-        plannerBtn.click();
-    }
-    
+    switchTabToPlanner();
     showToast("กำลังแสดงพรีวิวประวัติแผนงานย้อนหลัง", "success");
 }
 
