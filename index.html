@@ -394,6 +394,15 @@
                                     <span class="help-text">กรอก URL ของ Firebase Realtime Database ของคุณเพื่อซิงค์ข้อมูลข้ามเครื่อง (ปล่อยว่างเพื่อใช้เฉพาะเครื่องนี้)</span>
                                 </div>
 
+                                <div class="form-group" style="margin-top: 14px;">
+                                    <label for="setting-firebase-secret">Firebase Secret Key / Auth Token (ตัวเลือกเสริมเพื่อปิดอีเมลเตือน)</label>
+                                    <div class="input-icon-group" style="position: relative; display: flex; align-items: center;">
+                                        <i class="fa-solid fa-key" style="position: absolute; left: 14px; color: var(--text-muted);"></i>
+                                        <input type="password" id="setting-firebase-secret" placeholder="กรอก Database Secret เพื่อปิดอีเมลเตือน 100%" style="padding-left: 42px;">
+                                    </div>
+                                    <span class="help-text">หากใช้ Secret Key จะสามารถตั้งค่า Rules ใน Firebase เป็น auth != null เพื่อปิดอีเมลเตือนความปลอดภัยจาก Firebase ได้ 100%</span>
+                                </div>
+
                                 <div class="status-summary-box" style="margin-top: 16px; background: rgba(255,255,255,0.03);">
                                     <div class="status-row" style="font-size: 13px;">
                                         <span>สถานะการเชื่อมต่อ:</span>

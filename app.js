@@ -48,6 +48,7 @@ const DEFAULT_SETTINGS = {
     plannedDowntime: 0,
     codeChangeTime: 5,
     firebaseUrl: "https://roll-planning-default-rtdb.firebaseio.com/",
+    firebaseSecret: "",
     teamsEnabled: false,
     teamsWebhookUrl: "",
     lineEnabled: true,
@@ -1376,7 +1377,10 @@ function setupEventListeners() {
                 return;
             }
 
+            const secretInput = document.getElementById("setting-firebase-secret")?.value.trim() || "";
+
             settings.firebaseUrl = urlInput;
+            settings.firebaseSecret = secretInput;
             saveSettingsToStorage();
             
             updateCloudStatusUI("connecting");
@@ -1394,7 +1398,8 @@ function setupEventListeners() {
                 const cloudSettings = await fetchCloudData("operation_settings");
                 if (cloudSettings !== null) {
                     const oldUrl = settings.firebaseUrl;
-                    settings = { ...DEFAULT_SETTINGS, ...cloudSettings, firebaseUrl: oldUrl };
+                    const oldSecret = settings.firebaseSecret;
+                    settings = { ...DEFAULT_SETTINGS, ...cloudSettings, firebaseUrl: oldUrl, firebaseSecret: oldSecret };
                     localStorage.setItem("operation_settings", JSON.stringify(settings));
                 }
 
@@ -1417,7 +1422,7 @@ function setupEventListeners() {
                     showToast("อัปโหลดข้อมูลเครื่องนี้ขึ้นคลาวด์และเปิดซิงค์สำเร็จ", "success");
                 } else {
                     updateCloudStatusUI("error");
-                    showToast("ไม่สามารถเข้าถึงฐานข้อมูล Firebase ได้ กรุณาตรวจสอบกฎความปลอดภัย", "error");
+                    showToast("ไม่สามารถเข้าถึงฐานข้อมูล Firebase ได้ กรุณาตรวจสอบกฎความปลอดภัยหรือ Secret Key", "error");
                 }
             }
         });
@@ -1429,9 +1434,13 @@ function setupEventListeners() {
         btnClearCloud.addEventListener("click", () => {
             if (confirm("ต้องการยกเลิกการเชื่อมต่อกับคลาวด์และสลับกลับมาใช้ฐานข้อมูลในเครื่องนี้ใช่หรือไม่? (ข้อมูลจะเก็บแยกกัน)")) {
                 settings.firebaseUrl = "";
+                settings.firebaseSecret = "";
                 saveSettingsToStorage();
                 updateCloudStatusUI("local");
-                document.getElementById("setting-firebase-url").value = "";
+                const inputUrl = document.getElementById("setting-firebase-url");
+                const inputSecret = document.getElementById("setting-firebase-secret");
+                if (inputUrl) inputUrl.value = "";
+                if (inputSecret) inputSecret.value = "";
                 showToast("ยกเลิกการซิงค์ Cloud เรียบร้อยแล้ว", "success");
             }
         });
@@ -2548,10 +2557,14 @@ function exitPreviewMode() {
 function updateCloudStatusUI(status) {
     const statusEl = document.getElementById("cloud-connection-status");
     const inputUrl = document.getElementById("setting-firebase-url");
+    const inputSecret = document.getElementById("setting-firebase-secret");
     if (!statusEl) return;
     
     if (inputUrl && settings.firebaseUrl) {
         inputUrl.value = settings.firebaseUrl;
+    }
+    if (inputSecret && settings.firebaseSecret) {
+        inputSecret.value = settings.firebaseSecret;
     }
 
     if (status === "connecting") {
@@ -2578,7 +2591,11 @@ async function fetchCloudData(endpoint) {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 3000);
 
-        const url = `${baseUrl}/${endpoint}.json`;
+        let url = `${baseUrl}/${endpoint}.json`;
+        if (settings.firebaseSecret && settings.firebaseSecret.trim()) {
+            url += `?auth=${encodeURIComponent(settings.firebaseSecret.trim())}`;
+        }
+
         const res = await fetch(url, { signal: controller.signal });
         clearTimeout(timeoutId);
         if (!res.ok) throw new Error("Firebase fetch failed");
@@ -2598,7 +2615,11 @@ async function saveCloudData(endpoint, data) {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 3000);
 
-        const url = `${baseUrl}/${endpoint}.json`;
+        let url = `${baseUrl}/${endpoint}.json`;
+        if (settings.firebaseSecret && settings.firebaseSecret.trim()) {
+            url += `?auth=${encodeURIComponent(settings.firebaseSecret.trim())}`;
+        }
+
         const res = await fetch(url, {
             method: "PUT",
             headers: {
